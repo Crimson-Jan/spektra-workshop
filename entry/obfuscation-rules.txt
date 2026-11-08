@@ -1,0 +1,13 @@
+# 混淆规则
+#
+# 当前 enable: false，即不启用代码混淆——文件只是为了让 release 构建能找到它。
+# 之所以不开：这个应用的 ArkTS 层大量使用字符串键（AppStorage 的键名、
+# 导出参数的 JSON 字段名），而 native 侧按字段名解析参数。混淆一旦改名，
+# 参数就对不上，且只在 release 包里出错，debug 测不出来。
+#
+# 若要开启，先把上面 build-profile.json5 里的 enable 改成 true，
+# 再把下面几行取消注释：
+#
+# -keep-global-name
+# -keep-property-name
+# -keep-file-name
