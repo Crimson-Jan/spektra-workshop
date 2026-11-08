@@ -35,3 +35,6 @@ entry/.cxx/
 
 # Release signing material - must never be committed
 signing/
+
+# Project-level build output
+build/
