@@ -24,17 +24,18 @@ $env:Path = "$env:JAVA_HOME\bin;D:\DevEco Studio\tools\node;D:\DevEco Studio\too
             "D:\DevEco Studio\sdk\default\openharmony\native\build-tools\cmake\bin;" +
             "D:\DevEco Studio\sdk\default\openharmony\native\llvm\bin;C:\msys64\ucrt64\bin;$env:Path"
 
-# 1. 未签名包
-& 'D:\DevEco Studio\tools\hvigor\bin\hvigorw.bat' assembleHap --mode module `
+# 1. 未签名包。应用市场要的是 .app（App Pack），不是单个 .hap。
+& 'D:\DevEco Studio\tools\hvigor\bin\hvigorw.bat' assembleApp --mode project `
     -p product=release -p buildMode=release --no-daemon
 if ($LASTEXITCODE -ne 0) { throw "hvigor 构建失败" }
 
-$unsigned = "$root\entry\build\default\outputs\default\entry-default-unsigned.hap"
-if (-not (Test-Path $unsigned)) { throw "找不到未签名包：$unsigned" }
+$unsigned = Get-ChildItem "$root\build\outputs\release" -Filter '*-unsigned.app' -ErrorAction SilentlyContinue |
+             Select-Object -First 1 -ExpandProperty FullName
+if (-not $unsigned) { throw "找不到未签名 .app，检查 build\outputs\release" }
 
 # 2. 签名
 $version = (Select-String -Path "$root\AppScope\app.json5" -Pattern 'versionName"\s*:\s*"([^"]+)"').Matches[0].Groups[1].Value
-$out = "$root\out\光谱工坊-$version-release.hap"
+$out = "$root\out\光谱工坊-$version-release.app"
 New-Item -ItemType Directory -Force -Path "$root\out" | Out-Null
 
 $jar = 'D:\DevEco Studio\sdk\default\openharmony\toolchains\lib\hap-sign-tool.jar'
