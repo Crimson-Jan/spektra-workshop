@@ -29,3 +29,6 @@ local.properties
 # OS noise
 Thumbs.db
 .DS_Store
+
+# Native build cache
+entry/.cxx/
