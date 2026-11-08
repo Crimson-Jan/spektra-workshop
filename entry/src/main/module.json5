@@ -4,9 +4,11 @@
     "type": "entry",
     "description": "$string:module_desc",
     "mainElement": "EntryAbility",
+    // Tablet and desktop only for now. The three-pane layout does not work on a
+    // phone, and declaring it makes the store run phone and foldable self-checks
+    // that are bound to fail. Add "phone" back once the panels collapse.
     "deviceTypes": [
       "tablet",
-      "phone",
       "2in1"
     ],
     "deliveryWithInstall": true,
