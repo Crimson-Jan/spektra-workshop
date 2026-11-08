@@ -2565,6 +2565,34 @@ struct Index {
             .height('100%')
             .backgroundColor('#0A0908')
 
+            // Everything the gate will cut away goes dark. Drawn as four bars
+            // rather than one translucent layer with a hole, which ArkUI has no
+            // cheap way to express.
+            Row()
+              .width('100%')
+              .height(this.gateRect()[1])
+              .position({ x: 0, y: 0 })
+              .backgroundColor('#95000000')
+              .hitTestBehavior(HitTestMode.None)
+            Row()
+              .width('100%')
+              .height(this.canvasH - this.gateRect()[1] - this.gateRect()[3])
+              .position({ x: 0, y: this.gateRect()[1] + this.gateRect()[3] })
+              .backgroundColor('#95000000')
+              .hitTestBehavior(HitTestMode.None)
+            Row()
+              .width(this.gateRect()[0])
+              .height(this.gateRect()[3])
+              .position({ x: 0, y: this.gateRect()[1] })
+              .backgroundColor('#95000000')
+              .hitTestBehavior(HitTestMode.None)
+            Row()
+              .width(this.canvasW - this.gateRect()[0] - this.gateRect()[2])
+              .height(this.gateRect()[3])
+              .position({ x: this.gateRect()[0] + this.gateRect()[2], y: this.gateRect()[1] })
+              .backgroundColor('#95000000')
+              .hitTestBehavior(HitTestMode.None)
+
             // The gate: a fixed frame in the format's shape. It takes no
             // gesture at all, so the canvas underneath keeps every event and
             // there is nothing to arbitrate against.
