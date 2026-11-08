@@ -32,3 +32,6 @@ Thumbs.db
 
 # Native build cache
 entry/.cxx/
+
+# Release signing material - must never be committed
+signing/
