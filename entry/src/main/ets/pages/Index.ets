@@ -919,7 +919,8 @@ struct Index {
       return;
     }
     if (this.sourceUri.length === 0) {
-      await this.renderTestPattern();
+      // No photograph yet: the canvas already shows the empty state.
+      this.status = '';
       return;
     }
     this.busy = true;
@@ -961,32 +962,6 @@ struct Index {
     }
   }
 
-  private async renderTestPattern(): Promise<void> {
-    if (!this.ready || this.busy) {
-      return;
-    }
-    this.busy = true;
-    this.status = '渲染测试图…';
-    try {
-      const output = `${this.cacheDir}/test_${Date.now()}.png`;
-      const result: RenderResult = await native.renderTestPattern({
-        dataDir: this.dataDir,
-        output: output,
-        film: this.currentFilm(),
-        paper: this.currentPaper(),
-        width: 1024,
-        height: 683
-      });
-      this.showPreview(result.output);
-      this.timing = `${result.elapsedMs} ms`;
-      this.frameInfo = `${result.width}×${result.height}`;
-      this.status = '测试图完成';
-    } catch (e) {
-      this.status = `渲染失败：${(e as BusinessError).message}`;
-    } finally {
-      this.busy = false;
-    }
-  }
 
   /** Keeps the picture inside the canvas: at zoom z the image is z times wider
    *  than its box, so it can travel (z-1)/2 of the box length in each direction. */
@@ -2518,15 +2493,6 @@ struct Index {
               }
             })
 
-          Button('测试图')
-            .fontSize(12)
-            .height(32)
-            .backgroundColor('#1C1915')
-            .fontColor('#C9BDA6')
-            .type(ButtonType.Normal)
-            .borderRadius(6)
-            .enabled(this.ready && !this.busy)
-            .onClick(() => { this.renderTestPattern(); })
 
 
           Button('导出')
