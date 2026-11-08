@@ -1,39 +1,89 @@
-# AppGallery 上架清单
+# 光谱工坊 · AppGallery 提交材料
 
-最后更新：2026-11-03
+最后更新：2026-11-08 · 版本 1.0.0 (versionCode 1000000)
 
-## 一、已就绪
+## 一、基本信息
 
-| 项 | 状态 | 位置 |
+| 项目 | 值 |
+|---|---|
+| 应用名称 | 光谱工坊 |
+| 包名 | `com.negs.spektrafilm` |
+| 版本 | 1.0.0 / 1000000 |
+| 目标 API | target 26，compatible 12 |
+| 架构 | arm64-v8a |
+| 分类 | 摄影 |
+| 年龄分级 | 4+ |
+| 权限 | **无**（选图、选文件、保存全部走系统选择器） |
+| 隐私政策 | 见部署后的 GitHub Pages 地址 |
+| 源码 | https://github.com/Crimson-Jan/spektra-workshop |
+
+## 二、商店文案
+
+**一句话简介（不超过 80 字）**
+
+> 基于实测光谱数据的模拟胶片显影工具，还原胶片、相纸与片边的真实化学过程。
+
+**详细描述**
+
+> 光谱工坊不是滤镜，而是一台数字暗房。
+>
+> 它使用真实测量的光谱数据（26 款胶片、7 款相纸），按物理过程依次计算：胶片吸收光谱 → 显影成色剂 → 印相放大 → 相纸显影。因此颗粒、光晕、镜晕、片边灰雾都不是叠加的贴图，而是计算的结果。
+>
+> **主要功能**
+> - 26 款胶片、7 款相纸，含正片与负片
+> - 配光求解：自动计算放大机滤镜组（Y/M），也可手动微调
+> - 片边：135 / 半格 / XPan / 120（645–617）十种画幅，含片轴漏光与灰雾
+> - 片边构图：先看裁切框，决定保留哪一块再出片
+> - 波形图：实时查看成片的 RGB 分布
+> - 完整后期：对比度、饱和度、白场、黑场
+> - 导出 PNG / JPEG / TIFF，可指定长边与位深
+>
+> **隐私**
+> 全部处理在本机完成，不联网、不上传、不收集任何数据，不申请相册权限。
+
+**更新说明（首次提交）**
+
+> 首个版本。
+
+**关键词**
+
+> 胶片, 暗房, 显影, 负片, 光谱, film, darkroom
+
+## 三、图标与截图
+
+| 材料 | 位置 | 规格 |
 |---|---|---|
-| 包名 | `com.negs.spektrafilm` | `AppScope/app.json5` |
-| 版本 | `versionName 0.1.0` / `versionCode 1000000` | 同上 |
-| 目标 API | target 26，compatible 12 | `build-profile.json5` |
-| 架构 | arm64-v8a | 同上 |
-| HAP 体积 | 57.5 MB（含 16 MB 片边素材 / 26 MB 光谱数据） | `entry/build/.../entry-default-signed.hap` |
-| 权限 | **无**。选图、选文件、保存全部走系统选择器 | `module.json5` 无 `requestPermissions` |
-| 应用图标 | 分层图标 1024×1024 + 商店用平面图 1024/512/216 | `AppScope/.../media/`、`appgallery/` |
-| 许可证署名 | 关于页：spektrafilm (GPL-3.0 / CC BY-SA 4.0)、negs (GPL-3.0-only)、本移植、源码可得性 | `ets/pages/About.ets` |
-| 隐私声明 | 关于页：全部本机计算、不联网、无统计/广告 SDK、无隐私权限 | 同上 |
-| 真机验证 | MatePad Pro 12.2（MRDI-W10 / HarmonyOS 7.0.0.111 / API 26） | README「真机实测」 |
+| 应用图标 216 | `appgallery/store-icon-216.png` | 216×216 ✅ |
+| 应用图标 512 | `appgallery/store-icon-512.png` | 512×512 |
+| 应用图标 1024 | `appgallery/store-icon-1024.png` | 1024×1024 |
+| 截图 | 待生成 | 建议 2560×1600（横屏平板） |
 
-## 二、需要你提供或操作
+## 四、隐私政策部署
 
-1. **AGC 账号与应用创建**：在 AppGallery Connect 建应用，包名必须与 `com.negs.spektrafilm` 完全一致。
-2. **release 签名**：现在 `build-profile.json5` 里是调试证书（`default_spektrafilm-ohos_*.p12`）。
-   上架需要 AGC 下发的 release 证书 `.cer` 与 Profile `.p7b`，替换 `signingConfigs` 后重新
-   `assembleHap`。调试证书不能用于商店分发。
-3. **隐私政策**：应用内已有声明，但 AGC 通常还要求一个可访问的 URL。可以把关于页文案托管到任意静态页。
-4. **商店文案**：应用简介、详细描述、关键词、分类（建议「摄影」）。
-5. **截图**：`out/` 下已有真机截图可用（`ui-pro-6.jpeg`、`border-ui-1.jpeg`、`about-3.jpeg` 等），
-   需要按 AGC 要求裁成规定比例。
+`docs/privacy.html` 已写好，推送到仓库后开启 GitHub Pages 即可获得 URL：
 
-## 三、已知风险
+1. 仓库 → Settings → Pages
+2. Source 选 **Deploy from a branch**
+3. Branch 选 `main`，目录选 `/docs`
+4. 保存后等 1–2 分钟
+5. 地址：`https://crimson-jan.github.io/spektra-workshop/privacy.html`
 
-- **包体 57.5 MB**。若超限，最直接的减法是片边素材（16.2 MB）只保留常用胶片，
-  或改为首次使用时从网络下载——但那会引入联网，与"不联网"的隐私声明冲突。
-- **compatibleSdkVersion 是 12，但只在 API 26 设备上验证过**。API 12 的
-  `getUIContext().getHostContext()`、`picker.PhotoViewPicker.save()` 行为未实测。
-  保守做法是把 compatible 提到 18 或 20，减少低版本兼容风险。
-- **调试证书签名**：当前签名仅适合内测分发。
-- **未验证项**：LUT 导出与预设导入在真机上只走过桌面验证，UI 路径没点过。
+把这个 URL 填到 AGC 的隐私政策一栏。
+
+## 五、发布签名（唯一阻塞）
+
+当前是调试证书，商店不认。需要在 AGC 生成：
+
+1. APP ID（包名 `com.negs.spektrafilm`）
+2. 发布证书 `.cer`
+3. Release Profile `.p7b`
+
+拿到后替换 `build-profile.json5` 里的 `signingConfigs`，重新 `assembleHap`。
+
+## 六、已知风险
+
+| 风险 | 说明 | 建议 |
+|---|---|---|
+| 包体 57 MB | 含 26 MB 光谱数据 + 16 MB 片边素材 | 可接受；若不通过再精简 |
+| compatible 12 未广泛验证 | 只在 API 26 设备实测 | 可提到 20 降低兼容风险 |
+| 无网络能力 | 审核可能要求说明 | 已在隐私政策中说明这是特性而非缺陷 |
