@@ -1,4 +1,6 @@
-# Spektrafilm for HarmonyOS
+# 光谱工坊 · Spektrafilm for HarmonyOS
+
+应用市场上架名：**光谱工坊**（包名 com.negs.spektrafilm）。
 
 光谱胶片仿真引擎的鸿蒙原生移植。界面是 ArkUI，引擎是原样复用的 Rust 实现。
 
