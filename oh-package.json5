@@ -1,0 +1,8 @@
+{
+  "modelVersion": "5.0.0",
+  "name": "spektrafilm-ohos",
+  "version": "0.1.0",
+  "description": "Spectral analog film simulation for HarmonyOS, ported from negs/spektrafilm.",
+  "dependencies": {},
+  "devDependencies": {}
+}

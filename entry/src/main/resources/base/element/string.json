@@ -1,0 +1,18 @@
+﻿{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "Spectral analog film simulation"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "光谱工坊"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "光谱工坊"
+    }
+  ]
+}
+
+

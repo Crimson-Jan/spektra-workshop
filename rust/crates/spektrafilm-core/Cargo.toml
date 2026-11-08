@@ -1,0 +1,36 @@
+[package]
+name = "spektrafilm-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+precision-f64 = [
+    "spektrafilm-math/precision-f64",
+    "spektrafilm-gpu/precision-f64",
+    "spektrafilm-model/precision-f64",
+    "spektrafilm-io/precision-f64",
+]
+
+[dependencies]
+spektrafilm-math.workspace = true
+spektrafilm-gpu = { workspace = true, default-features = false }
+spektrafilm-model.workspace = true
+spektrafilm-io = { workspace = true, default-features = false }
+serde.workspace = true
+serde_json.workspace = true
+rayon.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+web-time.workspace = true
+libm.workspace = true
+rustfft.workspace = true
+image.workspace = true
+toml = { version = "0.8", default-features = false, features = ["parse"] }
+
+# NOTE (HarmonyOS port): upstream's cblas/blas-src dependencies are removed.
+# They existed only to accelerate two dgemm call sites (spectral_service.rs and
+# gpu/cpu_backend.rs). Both files already carry a pure-Rust fallback that
+# upstream selects on Windows and wasm32; this port extends those cfgs to
+# `target_env = "ohos"` and drops the BLAS provider entirely, which also
+# removes the OpenBLAS cross-compilation problem.

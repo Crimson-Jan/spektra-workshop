@@ -1,0 +1,27 @@
+[package]
+name = "spektrafilm-gpu"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# HarmonyOS port: CPU (rayon) backend only.
+#
+# Upstream also carries a wgpu backend and a CUDA backend. wgpu has no
+# HarmonyOS adapter/surface integration upstream, so this copy keeps only
+# `cpu_backend`, which is a complete implementation of `ComputeBackend` —
+# the same path upstream uses on Windows and in the browser.
+#
+# The wgpu/CUDA sources remain on disk but are no longer referenced from
+# lib.rs, so they are not compiled. Restoring GPU support later means bringing
+# back the `wgpu-backend` feature plus a HarmonyOS Vulkan loader path.
+[features]
+default = []
+precision-f64 = ["spektrafilm-math/precision-f64"]
+
+[dependencies]
+spektrafilm-math.workspace = true
+rayon.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+web-time.workspace = true
+bytemuck.workspace = true

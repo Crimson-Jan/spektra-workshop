@@ -1,0 +1,13 @@
+﻿{
+  "app": {
+    // Placeholder bundle id. Rename before publishing to AppGallery; the
+    // debug signing profile binds to whatever name is used here.
+    "bundleName": "com.negs.spektrafilm",
+    "vendor": "negs-port",
+    "versionCode": 1000000,
+    "versionName": "1.0.0",
+    "icon": "$media:layered_image",
+    "label": "$string:app_name"
+  }
+}
+

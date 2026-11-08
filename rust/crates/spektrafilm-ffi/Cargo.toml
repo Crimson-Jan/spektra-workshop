@@ -1,0 +1,45 @@
+[package]
+name = "spektrafilm-ffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "spektrafilm"
+crate-type = ["staticlib", "rlib"]
+
+# Desktop smoke test; not built for the device target.
+[[bin]]
+name = "sf-selftest"
+path = "src/bin/selftest.rs"
+required-features = []
+
+# Desktop driver for the same file-in/file-out path the app uses.
+[[bin]]
+name = "sf-render"
+path = "src/bin/render.rs"
+required-features = []
+
+# Export the film/paper look as a .cube 3D LUT.
+[[bin]]
+name = "sf-lut"
+path = "src/bin/lut.rs"
+required-features = []
+
+# Import/export spektrafilm GUI presets.
+[[bin]]
+name = "sf-preset"
+path = "src/bin/preset.rs"
+required-features = []
+
+# C ABI consumed by the ArkTS/NAPI bridge in entry/src/main/cpp.
+# Kept deliberately narrow: file path in, file path out. No Rust type crosses.
+[dependencies]
+spektrafilm-core.workspace = true
+spektrafilm-gpu = { workspace = true, default-features = false }
+spektrafilm-math.workspace = true
+spektrafilm-model.workspace = true
+spektrafilm-io = { workspace = true, default-features = false }
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true

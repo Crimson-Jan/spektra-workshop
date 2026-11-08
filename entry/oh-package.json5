@@ -1,0 +1,11 @@
+{
+  "name": "entry",
+  "version": "0.1.0",
+  "description": "Spektrafilm entry module: ArkUI shell over the Rust spectral engine.",
+  "main": "",
+  "author": "port of spektrafilm by Andrea Volpato / negs by Noah Haasis",
+  "license": "GPL-3.0-only",
+  "dependencies": {
+    "libspektrafilmoh.so": "file:./src/main/cpp/types/libspektrafilmoh"
+  }
+}

@@ -1,0 +1,31 @@
+﻿# Build products
+rust/target/
+entry/build/
+entry/.preview/
+.hvigor/
+.idea/
+out/
+*.hap
+*.har
+*.hsp
+*.app
+
+# HarmonyOS / ohpm
+oh_modules/
+node_modules/
+hvigor/
+hvigorfile.ts.bak
+
+# Toolchain caches kept inside the project
+rust/vendor/
+.cargo/
+
+# Signing material — never commit these
+*.p12
+*.cer
+*.p7b
+local.properties
+
+# OS noise
+Thumbs.db
+.DS_Store

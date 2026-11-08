@@ -1,0 +1,60 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/spektrafilm-math",
+    "crates/spektrafilm-model",
+    "crates/spektrafilm-io",
+    "crates/spektrafilm-gpu",
+    "crates/spektrafilm-core",
+    "crates/spektrafilm-ffi",
+]
+exclude = ["vendor"]
+
+# Ported from negs 0.13.0 (https://github.com/noahhaasis/negs, GPL-3.0-only),
+# itself derived from spektrafilm by Andrea Volpato
+# (https://github.com/andreavolpato/spektrafilm).
+# The HarmonyOS port keeps the CPU compute backend only.
+
+[workspace.package]
+version = "0.13.0"
+edition = "2024"
+license = "GPL-3.0-only"
+rust-version = "1.89"
+
+[workspace.dependencies]
+spektrafilm-core = { path = "crates/spektrafilm-core" }
+spektrafilm-gpu = { path = "crates/spektrafilm-gpu" }
+spektrafilm-math = { path = "crates/spektrafilm-math" }
+spektrafilm-model = { path = "crates/spektrafilm-model" }
+spektrafilm-io = { path = "crates/spektrafilm-io" }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rayon = "1.10"
+rand = "0.9"
+rand_distr = "0.5"
+image = { version = "0.25", default-features = false, features = ["tiff", "png", "jpeg"] }
+exr = "1.73"
+tracing = "0.1"
+thiserror = "2"
+anyhow = "1"
+byteorder = "1"
+libm = "0.2"
+rustfft = "6"
+half = "2.7"
+rand_mt = "5"
+web-time = "1"
+pollster = "0.4"
+bytemuck = { version = "1.25", features = ["derive"] }
+
+# `panic = "abort"` is deliberately NOT set: the FFI layer catches panics and
+# reports them as error codes, which an aborting profile would defeat.
+[profile.release]
+lto = "thin"
+codegen-units = 1
+opt-level = 3
+
+# rawler patched for web_time::Instant in the original; keep the vendored copy
+# so the engine keeps decoding RAW identically.
+[patch.crates-io]
+rawler = { path = "vendor/rawler" }
