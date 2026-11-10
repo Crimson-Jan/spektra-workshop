@@ -2499,10 +2499,8 @@ struct Index {
         this.openGallery();
       } else if (index === 0) {
         this.compactTab = 0;
-        this.compactSheet = true;
       } else {
         this.compactTab = index;
-        this.compactSheet = true;
       }
     })
   }
@@ -2512,6 +2510,9 @@ struct Index {
   compactPanel() {
     Column() {
       Row() {
+        Text('‹').fontSize(24).fontColor('#C9BDA6')
+          .padding({ right: 12, top: 0, bottom: 0 })
+          .onClick(() => { this.compactTab = -1; })
         Text(this.compactTab === 1 ? '胶片' : this.compactTab === 2 ? '相纸' :
              this.compactTab === 3 ? '调整' : this.compactTab === 4 ? '片边' : '构图')
           .fontSize(17).fontColor('#EDE6D8')
@@ -2543,8 +2544,10 @@ struct Index {
         Blank()
       }
     }
-    .width('100%').height('100%')
-    .padding({ left: 22, right: 22, top: 10, bottom: 20 })
+    .width('100%').height(340)
+    .padding({ left: 22, right: 22, top: 10, bottom: 16 })
+    .backgroundColor('#141210')
+    .border({ width: { top: 1 }, color: '#2E2A22' })
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -3579,6 +3582,10 @@ struct Index {
               }
               .width('100%')
 
+              if (this.compactTab >= 0) {
+                this.compactPanel()
+              }
+
               Row() {
                 this.compactTabItem('构图', 0)
                 this.compactTabItem('胶片', 1)
@@ -3748,14 +3755,6 @@ struct Index {
         // 允许下滑收起，但收起后如果还没同意，下次进页面会再弹。
         sheetDismiss.dismiss();
       }
-    })
-    .bindSheet($$this.compactSheet, this.compactPanel(), {
-      height: SheetSize.MEDIUM,
-      dragBar: true,
-      showClose: false,
-      backgroundColor: '#141210',
-      maskColor: '#AA000000',
-      onDisappear: () => { this.compactTab = -1; }
     })
   }
 }
