@@ -2472,6 +2472,11 @@ struct Index {
       this.compact = rect.height > rect.width;
       win.on('windowSizeChange', (size: window.Size) => {
         this.compact = size.height > size.width;
+      // 转到横屏时收起底部面板，避免面板残留在三栏布局里
+      if (!this.compact) {
+        this.compactTab = -1;
+        this.compactSheet = false;
+      }
       });
     } catch (e) {
       this.compact = false;
