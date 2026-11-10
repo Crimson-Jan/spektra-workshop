@@ -343,6 +343,14 @@ struct Index {
     autoCancel: true,
     customStyle: true
   });
+
+  /** 导入菜单里的「支持格式说明」。 */
+  private formatDialog: CustomDialogController = new CustomDialogController({
+    builder: FormatDialog({}),
+    alignment: DialogAlignment.Center,
+    autoCancel: true,
+    customStyle: true
+  });
   // --- 片边构图: see where the gate will crop before committing to it ------
   @State private composeMode: boolean = false;
   /** Full, uncropped preview shown while composing. */
@@ -2671,6 +2679,10 @@ struct Index {
               {
                 value: '从文件导入',
                 action: () => { this.pickFile(); }
+              },
+              {
+                value: '支持格式说明',
+                action: () => { this.formatDialog.open(); }
               }
             ])
 
@@ -3612,3 +3624,70 @@ struct AboutDialog {
   }
 }
 
+
+/**
+ * 支持格式说明。
+ *
+ * 写在这里而不是商店页，是因为用户是在「导入失败」的那一刻需要它：菜单里
+ * 就地能查到为什么打不开、该怎么办。
+ */
+@CustomDialog
+struct FormatDialog {
+  controller?: CustomDialogController;
+
+  @Builder
+  row(title: string, body: string) {
+    Column() {
+      Text(title).fontSize(14).fontColor('#EDE6D8').width('100%')
+      Text(body).fontSize(13).lineHeight(21).fontColor('#A79E8E').width('100%').padding({ top: 4 })
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+    .padding({ bottom: 16 })
+  }
+
+  build() {
+    Column() {
+      Row() {
+        Text('支持的 RAW 格式').fontSize(17).fontColor('#EDE6D8').fontWeight(FontWeight.Medium)
+        Blank()
+        Text('关闭')
+          .fontSize(13).fontColor('#A79E8E')
+          .padding({ left: 10, right: 2, top: 4, bottom: 4 })
+          .onClick(() => { this.controller?.close(); })
+      }
+      .width('100%')
+      .padding({ bottom: 14 })
+
+      Scroll() {
+        Column() {
+          this.row('覆盖面',
+            '共 738 个机型条目：佳能 142、索尼 107、松下 93、尼康 91、富士 86、奥林巴斯 66，另有徕卡、宾得、哈苏、飞思等。')
+          this.row('索尼（需要注意）',
+            'A7 V 等 2025 年后的新机型，若相机里把「RAW 文件类型」设为无损压缩（ARW6 编码），目前无法解码，华为官方图库同样打不开。请在相机设置里改为未压缩 RAW，或改用 JPEG。A7R V 及更早机型不受影响。')
+          this.row('佳能',
+            '全系 RAW 支持。sRAW / mRAW 等缩小尺寸格式在部分老机型上有条目限制，建议使用标准 RAW。')
+          this.row('尼康',
+            'Z 系列与 D 系列标准 RAW 支持。HE / HE* 高效压缩格式尚未验证，如遇打不开请改用无损压缩或未压缩。')
+          this.row('其他厂商',
+            '松下、富士、奥林巴斯、徕卡、宾得等按机型表支持，个别新机型可能尚未收录。')
+          this.row('如何确认',
+            '把相机 RAW 设为未压缩（体积最大）兼容性最好。若仍无法打开，请把文件反馈给我们，以便补充支持。')
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+      }
+      .width('100%')
+      .height(340)
+      .scrollBar(BarState.Auto)
+      .scrollBarWidth(3)
+      .scrollBarColor('#4C463B')
+    }
+    .width(620)
+    .padding(22)
+    .backgroundColor('#141210')
+    .borderRadius(14)
+    .border({ width: 1, color: '#2E2A22' })
+    .alignItems(HorizontalAlign.Start)
+  }
+}

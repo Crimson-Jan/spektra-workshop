@@ -1,0 +1,801 @@
+﻿# rawler 0.8.0 支持的相机与格式
+
+生成时间: 2026-11-10 21:45
+
+总计: 738 个机型条目
+
+## apple (2)
+
+- QuickTake 100
+- QuickTake 150
+
+## arri (4)
+
+- ALEXA
+- ALEXA65
+- ALEXALF
+- A-MINI
+
+## canon (142)
+
+- Canon EOS 1000D
+- Canon EOS 100D
+- Canon EOS 10D
+- Canon EOS 1100D
+- Canon EOS 1200D
+- Canon EOS 1300D
+- Canon EOS-1D
+- Canon EOS-1D Mark II
+- Canon EOS-1D Mark II N
+- Canon EOS-1D Mark III
+- Canon EOS-1D Mark IV  (sRaw1)
+- Canon EOS-1DS
+- Canon EOS-1Ds Mark II
+- Canon EOS-1Ds Mark III
+- Canon EOS-1D X
+- Canon EOS-1D X Mark II  (sRaw1)
+- Canon EOS-1D X Mark III  (raw)
+- Canon EOS 2000D
+- Canon EOS 200D
+- Canon EOS 20D
+- Canon EOS 250D  (raw)
+- Canon EOS 300D DIGITAL
+- Canon EOS 30D
+- Canon EOS 350D DIGITAL
+- Canon EOS 4000D
+- Canon EOS 400D DIGITAL
+- Canon EOS 40D  (sRaw2)
+- Canon EOS 450D
+- Canon EOS 500D
+- Canon EOS 50D  (sRaw1)
+- Canon EOS 550D
+- Canon EOS 5D
+- Canon EOS 5D Mark II  (sRaw1)
+- Canon EOS 5D Mark III  (sRaw1)
+- Canon EOS 5D Mark IV  (sRaw1)
+- Canon EOS 5DS  (sRaw1)
+- Canon EOS 5DS R  (sRaw1)
+- Canon EOS 600D
+- Canon EOS 60D  (sRaw1)
+- Canon EOS 650D
+- Canon EOS 6D  (sRaw1)
+- Canon EOS 6D Mark II  (sRaw1)
+- Canon EOS 700D
+- Canon EOS 70D  (sRaw1)
+- Canon EOS 750D
+- Canon EOS 760D
+- Canon EOS 77D
+- Canon EOS 7D  (sRaw1)
+- Canon EOS 7D Mark II  (sRaw1)
+- Canon EOS 800D
+- Canon EOS 80D  (sRaw1)
+- Canon EOS 850D  (raw)
+- Canon EOS 90D  (raw)
+- PowerShot A3300 IS
+- PowerShot A610
+- PowerShot A620
+- PowerShot A630
+- PowerShot A640
+- PowerShot A650
+- PowerShot A720 IS
+- Canon EOS C50  (raw)
+- Canon PowerShot D10
+- EOS D2000C
+- Canon EOS D30
+- Canon EOS D60
+- Canon PowerShot G1
+- Canon PowerShot G10
+- Canon PowerShot G11
+- Canon PowerShot G12
+- Canon PowerShot G15
+- Canon PowerShot G16
+- Canon PowerShot G1 X
+- Canon PowerShot G1 X Mark II
+- Canon PowerShot G1 X Mark III
+- Canon PowerShot G2
+- Canon PowerShot G3
+- Canon PowerShot G3 X
+- Canon PowerShot G5
+- Canon PowerShot G5 X
+- Canon PowerShot G5 X Mark II  (raw)
+- Canon PowerShot G6
+- Canon PowerShot G7 X
+- Canon PowerShot G7 X CRW
+- Canon PowerShot G7 X Mark II
+- Canon PowerShot G7 X Mark III  (raw)
+- Canon PowerShot G9
+- Canon PowerShot G9 X
+- Canon PowerShot G9 X Mark II
+- Canon IXY 220F
+- Canon EOS M
+- Canon EOS M10
+- Canon EOS M100
+- Canon EOS M2
+- Canon EOS M200  (raw)
+- Canon EOS M3
+- Canon EOS M5
+- Canon EOS M50  (raw)
+- Canon EOS M50m2  (raw)
+- Canon EOS M6
+- Canon EOS M6 Mark II  (raw)
+- Canon PowerShot Pro1
+- Canon EOS R  (raw)
+- Canon EOS R10  (raw)
+- Canon EOS R100  (raw)
+- Canon EOS R3  (raw)
+- Canon EOS R5  (raw)
+- Canon EOS R50  (raw)
+- Canon EOS R50 V  (raw)
+- Canon EOS R5 C  (raw)
+- Canon EOS R5m2  (raw)
+- Canon EOS R6  (raw)
+- Canon EOS R6m2  (raw)
+- Canon EOS R6 Mark III  (raw)
+- Canon EOS R7  (raw)
+- Canon EOS R8  (raw)
+- Canon EOS RP  (raw)
+- Canon PowerShot S100
+- Canon PowerShot S100 CRW
+- Canon PowerShot S100V
+- Canon PowerShot S110
+- Canon PowerShot S120
+- Canon PowerShot S2 IS
+- Canon PowerShot S30
+- PowerShot S3 IS
+- Canon PowerShot S40
+- Canon PowerShot S45
+- Canon PowerShot S50
+- Canon PowerShot S60
+- Canon PowerShot S70
+- Canon PowerShot S90
+- Canon PowerShot S95
+- PowerShot SX110 IS
+- Canon PowerShot SX150 IS
+- Canon PowerShot SX1 IS
+- Canon PowerShot SX220 HS
+- Canon PowerShot SX260 HS
+- Canon PowerShot SX40 HS
+- Canon PowerShot SX50 HS
+- Canon PowerShot SX60 HS
+- Canon PowerShot SX70 HS  (raw)
+- Canon PowerShot SX710 HS
+- Canon PowerShot V1  (raw)
+
+## epson (3)
+
+- R-D1
+- R-D1s
+- R-D1x
+
+## fuji (86)
+
+- DBP for GX680
+- FinePix E550
+- FinePix E900
+- FinePix F550EXR
+- FinePix F600EXR
+- FinePix F700
+- FinePix F770EXR
+- FinePix F900EXR
+- GFX 100
+- GFX100 II
+- GFX100RF
+- GFX100S
+- GFX100S II
+- GFX 50R
+- GFX 50S
+- GFX50S II
+- FinePix HS10 HS11
+- FinePix HS20EXR
+- FinePix HS30EXR
+- FinePix HS33EXR
+- FinePix HS50EXR
+- FinePix S1
+- FinePix S100FS
+- FinePix S200EXR
+- FinePixS2Pro
+- FinePix S3Pro
+- FinePix S5000
+- FinePix S5200
+- FinePix S5500
+- FinePix S5600
+- FinePix S5Pro
+- FinePix S6500fd
+- FinePix S7000
+- FinePix S9500
+- FinePix S9600
+- FinePix SL1000
+- X10
+- FinePix X100
+- X100F
+- X100S
+- X100T
+- X100V
+- X100VI
+- X20
+- X30
+- X70
+- X-A1
+- X-A10
+- X-A2
+- X-A3
+- X-A5
+- X-A7
+- X-E1
+- X-E2
+- X-E2S
+- X-E3  (compressed)
+- X-E4
+- X-E5
+- XF1
+- XF10
+- X-H1
+- X-H2
+- X-H2S
+- X-M1
+- X-M5
+- X-Pro1
+- X-Pro2  (compressed)
+- X-Pro3
+- XQ1
+- XQ2
+- X-S1
+- X-S10
+- X-S20
+- X-T1
+- X-T10
+- X-T100
+- X-T2  (compressed)
+- X-T20  (compressed)
+- X-T200
+- X-T3
+- X-T30
+- X-T30 II
+- X-T30 III
+- X-T4
+- X-T5
+- X-T50
+
+## hasselblad (11)
+
+- Hasselblad 500 mech.
+- Hasselblad CFV-50
+- Hasselblad H3D
+- Hasselblad H4D-40
+- Hasselblad H4D-50
+- Hasselblad H5D-40
+- Hasselblad H5D-50c
+- Hasselblad H6D-100cMS
+- Hasselblad X1D
+- X1D II 50C
+- X2D 100C
+
+## kodak (16)
+
+- Kodak DC120 ZOOM Digital Camera
+- Kodak Digital Science DC50 Zoom Camera
+- DCS Pro SLR/c
+- DCS Pro SLR/n
+- DCS Pro 14N
+- DCS Pro 14nx
+- EOSDCS1B        FILE VERSION 3
+- EOSDCS3C        FILE VERSION 3
+- DCS460D         FILE VERSION 3
+- DCS560C
+- DCS760C
+- KODAK P712 ZOOM DIGITAL CAMERA
+- KODAK P880 ZOOM DIGITAL CAMERA
+- KODAK EASYSHARE Z1015 IS DIGITAL CAMERA
+- KODAK EasyShare Z981 Digital Camera
+- KODAK EasyShare Z990 Digital Camera
+
+## leaf (6)
+
+- Leaf Aptus 22
+- Leaf Aptus 75
+- Credo 40
+- Credo 50
+- Credo 60
+- Credo 80
+
+## leica (27)
+
+- C (Typ 112)  (4:3)
+- LEICA CL  (dng)
+- C-Lux  (3:2)
+- DIGILUX 2  (4:3)
+- DIGILUX 3  (4:3)
+- D-LUX (Typ 109)  (3:2)
+- D-LUX 3  (16:9)
+- D-LUX 4  (3:2)
+- D-LUX 5  (16:9)
+- D-Lux 7  (4:3)
+- M Monochrom  (dng)
+- LEICA M MONOCHROM (Typ 246)  (dng)
+- LEICA M (Typ 240)  (dng)
+- LEICA M10  (dng)
+- LEICA M10-R  (dng)
+- M8 Digital Camera  (dng)
+- M9 Digital Camera  (dng)
+- LEICA Q (Typ 116)  (dng)
+- LEICA Q2  (dng)
+- LEICA SL (Typ 601)  (dng)
+- LEICA SL2  (dng)
+- LEICA SL3-P  (dng)
+- V-LUX 1  (3:2)
+- V-LUX (Typ 114)  (4:3)
+- V-LUX 4  (4:3)
+- V-Lux 5  (3:2)
+- LEICA X2  (dng)
+
+## mamiya (1)
+
+- MAMIYA ZD
+
+## minolta (10)
+
+- DiMAGE 7
+- DiMAGE 7Hi
+- DiMAGE 7i
+- DiMAGE A1
+- DiMAGE A2
+- DiMAGE A200
+- ALPHA-7 DIGITAL
+- DYNAX 7D
+- DiMAGE G600
+- MAXXUM 7D
+
+## nikon (91)
+
+- NIKON 1 AW1  (12bit)
+- NIKON 1 J1  (12bit)
+- NIKON 1 J2  (12bit)
+- NIKON 1 J3  (12bit)
+- NIKON 1 J5  (12bit)
+- NIKON 1 S2  (12bit)
+- NIKON 1 V1  (12bit)
+- NIKON 1 V2  (12bit)
+- NIKON 1 V3  (12bit)
+- COOLPIX A  (14bit)
+- COOLPIX A1000  (12bit)
+- COOLPIX B700  (12bit)
+- E8800  (12bit)
+- COOLPIX P1000  (12bit)
+- COOLPIX P330  (12bit)
+- COOLPIX P340  (12bit)
+- COOLPIX P6000  (12bit)
+- COOLPIX P7000  (12bit)
+- COOLPIX P7100  (12bit)
+- COOLPIX P7800  (12bit)
+- COOLPIX P950  (12bit)
+- Nikon SUPER COOLSCAN 5000 ED  (16bit)
+- NIKON D1  (12bit)
+- NIKON D100  (12bit)
+- NIKON D1X  (12bit)
+- NIKON D200  (12bit)
+- NIKON D2H  (12bit)
+- NIKON D2Hs  (12bit)
+- NIKON D2X  (12bit)
+- NIKON D2Xs  (12bit)
+- NIKON D3  (12bit)
+- NIKON D300  (12bit)
+- NIKON D3000  (12bit)
+- NIKON D300S  (12bit)
+- NIKON D3100  (12bit)
+- NIKON D3200  (12bit)
+- NIKON D3300  (12bit)
+- NIKON D3400  (12bit)
+- NIKON D3500  (12bit)
+- NIKON D3S  (12bit)
+- NIKON D3X  (14bit)
+- NIKON D4  (14bit)
+- NIKON D40  (12bit)
+- NIKON D40X  (12bit)
+- NIKON D4S  (14bit)
+- NIKON D5  (14bit)
+- NIKON D50  (12bit)
+- NIKON D500  (14bit)
+- NIKON D5000  (12bit)
+- NIKON D5100  (14bit)
+- NIKON D5200  (14bit)
+- NIKON D5300  (12bit)
+- NIKON D5500  (14bit)
+- NIKON D5600  (14bit)
+- NIKON D6  (12bit)
+- NIKON D60  (12bit)
+- NIKON D600  (14bit)
+- NIKON D610  (14bit)
+- NIKON D70  (12bit)
+- NIKON D700  (14bit)
+- NIKON D7000  (14bit)
+- NIKON D70s  (12bit)
+- NIKON D7100  (14bit)
+- NIKON D7200  (14bit)
+- NIKON D750  (14bit)
+- NIKON D7500  (12bit)
+- NIKON D780  (14bit)
+- NIKON D80  (12bit)
+- NIKON D800  (12bit)
+- NIKON D810  (12bit)
+- NIKON D850  (12bit)
+- NIKON D90  (12bit)
+- NIKON Df  (14bit)
+- E5400  (12bit)
+- E5700  (12bit)
+- E8400  (12bit)
+- NIKON Z f  (14bit)
+- NIKON Z fc  (12bit)
+- NIKON Z 30  (12bit)
+- NIKON Z 5  (12bit)
+- NIKON Z5_2  (14bit)
+- NIKON Z 50  (12bit)
+- NIKON Z50_2  (14bit)
+- NIKON Z 6  (12bit)
+- NIKON Z 6_2  (12bit)
+- NIKON Z6_3  (14bit)
+- NIKON Z 7  (12bit)
+- NIKON Z 7_2  (12bit)
+- NIKON Z 8  (14bit)
+- NIKON Z 9  (12bit)
+- NIKON ZR  (14bit)
+
+## olympus (66)
+
+- C5050Z
+- C5060WZ
+- C7070WZ
+- C8080WZ
+- E-1
+- E-10
+- E-20,E-20N,E-20P
+- E-3
+- E-30
+- E-300
+- E-330
+- E-400
+- E-410
+- E-420
+- E-450
+- E-5
+- E-500
+- E-510
+- E-520
+- E-600
+- E-620
+- E-M1
+- E-M10
+- E-M10MarkII
+- E-M10 Mark III
+- E-M10MarkIIIS
+- E-M10MarkIV
+- E-M1MarkII  (highres)
+- E-M1MarkIII  (highres)
+- E-M1X
+- E-M5
+- E-M5MarkII  (highres)
+- E-M5MarkIII  (highres)
+- E-P1
+- E-P2
+- E-P3
+- E-P5
+- E-P7
+- E-PL1
+- E-PL10
+- E-PL2
+- E-PL3
+- E-PL5
+- E-PL6
+- E-PL7
+- E-PL8
+- E-PL9
+- E-PM1
+- E-PM2
+- PEN-F  (highres)
+- SH-2
+- SP320
+- SP350
+- SP500UZ
+- SP510UZ
+- SP550UZ
+- SP565UZ
+- SP570UZ
+- STYLUS1
+- STYLUS1,1s
+- TG-4
+- TG-5
+- TG-6
+- XZ-1
+- XZ-10
+- XZ-2
+
+## omdigital (6)
+
+- OM-1  (highres)
+- OM-1MarkII  (highres)
+- OM-3  (highres)
+- OM-5  (highres)
+- OM-5MarkII  (highres)
+- TG-7
+
+## panasonic (93)
+
+- DMC-CM1  (3:2)
+- DC-L10  (4:3)
+- DMC-L10  (4:3)
+- DMC-FX150  (4:3)
+- DMC-FZ100  (1:1)
+- DMC-FZ1000  (1:1)
+- DC-FZ10002  (1:1)
+- DMC-FZ150  (1:1)
+- DMC-FZ18  (4:3)
+- DMC-FZ200  (1:1)
+- DMC-FZ2000
+- DMC-FZ2500  (3:2)
+- DMC-FZ28  (4:3)
+- DMC-FZ30  (4:3)
+- DMC-FZ300  (4:3)
+- DMC-FZ330  (4:3)
+- DMC-FZ38  (4:3)
+- DMC-FZ45  (4:3)
+- DMC-FZ50  (4:3)
+- DMC-FZ70  (1:1)
+- DMC-FZ72  (1:1)
+- DMC-FZ8  (4:3)
+- DC-FZ80  (4:3)
+- DMC-G1  (3:2)
+- DMC-G10  (4:3)
+- DC-G100  (4:3)
+- DMC-G2  (1:1)
+- DMC-G3  (1:1)
+- DMC-G5  (1:1)
+- DMC-G6  (1:1)
+- DMC-G7  (1:1)
+- DMC-G70  (1:1)
+- DMC-G80  (4:3)
+- DC-G9  (4:3)
+- DC-G90  (4:3)
+- DC-G9M2  (4:3)
+- DMC-GF1  (1:1)
+- DC-GF10  (1:1)
+- DMC-GF2  (1:1)
+- DMC-GF3  (1:1)
+- DMC-GF5  (1:1)
+- DMC-GF6  (1:1)
+- DMC-GF7  (1:1)
+- DMC-GF8  (1:1)
+- DMC-GH1  (4:3)
+- DMC-GH2  (1:1)
+- DMC-GH3  (1:1)
+- DMC-GH4  (1:1)
+- DC-GH5  (4:3)
+- DC-GH5M2  (4:3)
+- DC-GH5S  (4:3)
+- DC-GH6  (4:3)
+- DC-GH7  (4:3)
+- DMC-GM1  (1:1)
+- DMC-GM1S  (4:3)
+- DMC-GM5  (4:3)
+- DMC-GX1  (1:1)
+- DMC-GX7  (1:1)
+- DMC-GX7MK2  (1:1)
+- DC-GX7MK3  (1:1)
+- DMC-GX8  (4:3)
+- DMC-GX80  (4:3)
+- DC-GX800  (4:3)
+- DC-GX880  (4:3)
+- DC-GX9  (4:3)
+- DMC-L1  (4:3)
+- DMC-LF1  (1:1)
+- DMC-LX1  (16:9)
+- DMC-LX10  (3:2)
+- DMC-LX100  (1:1)
+- DC-LX100M2  (1:1)
+- DMC-LX2  (16:9)
+- DMC-LX3  (1:1)
+- DMC-LX5  (1:1)
+- DMC-LX7  (1:1)
+- DC-S1  (3:2)
+- DC-S1H  (3:2)
+- DC-S1M2  (3:2)
+- DC-S1M2ES  (3:2)
+- DC-S1R  (3:2)
+- DC-S1RM2  (3:2)
+- DC-S5  (3:2)
+- DC-S5M2  (3:2)
+- DC-S9  (3:2)
+- DMC-TZ100  (3:2)
+- DC-TZ202  (3:2)
+- DMC-TZ60  (1:1)
+- DMC-TZ61  (1:1)
+- DMC-TZ70  (1:1)
+- DMC-TZ71  (1:1)
+- DMC-TZ80  (4:3)
+- DC-TZ90  (4:3)
+- DC-TZ95  (4:3)
+
+## pentax (30)
+
+- PENTAX 645D
+- PENTAX 645Z
+- PENTAX *ist D
+- PENTAX *ist DL
+- PENTAX *ist DL2
+- PENTAX *ist DS
+- PENTAX K-1
+- PENTAX K100D
+- PENTAX K100D Super
+- PENTAX K10D
+- PENTAX K110D
+- PENTAX K-1 Mark II
+- PENTAX K200D
+- PENTAX K20D
+- PENTAX K-3
+- PENTAX K-3 II
+- PENTAX K-3 Mark III
+- PENTAX K-3 Mark III Monochrome
+- PENTAX K-5
+- PENTAX K-5 II
+- PENTAX K-5 II s
+- PENTAX K-7
+- PENTAX K-70
+- PENTAX KF
+- PENTAX K-m
+- PENTAX KP
+- PENTAX K-r
+- PENTAX K-S1
+- PENTAX K-S2
+- PENTAX K-x
+
+## phase_one (16)
+
+- H 25
+- IQ140
+- IQ150
+- IQ180
+- IQ3 100MP
+- IQ3 100MP Trichr
+- IQ4 150MP
+- iXM-100
+- iXM-RS150F
+- iXU-RS1000 NIR
+- iXU180
+- P20+
+- P25
+- P30
+- P45
+- P65+
+
+## samsung (21)
+
+- EX1
+- EX2F
+- NX mini
+- NX1
+- NX10
+- NX100
+- NX1000
+- NX11
+- NX1100
+- NX20
+- NX200
+- NX2000
+- NX210
+- NX30
+- NX300
+- NX3000
+- NX300M
+- NX3300
+- NX5
+- NX500
+- WB2000
+
+## sony (107)
+
+- ILCE-1
+- DSLR-A100
+- ILCE-1M2
+- DSLR-A200
+- DSLR-A230
+- DSLR-A290
+- DSLR-A300
+- ILCE-3000
+- SLT-A33
+- DSLR-A330
+- SLT-A35
+- DSLR-A350
+- ILCE-3500
+- SLT-A37
+- DSLR-A380
+- DSLR-A390
+- DSLR-A450
+- DSLR-A500
+- ILCE-5000
+- ILCE-5100
+- SLT-A55
+- DSLR-A550
+- DSLR-A560
+- SLT-A57
+- SLT-A58
+- DSLR-A580
+- ILCE-6000
+- ILCE-6001
+- ILCE-6100
+- ILCE-6300
+- ILCE-6400
+- SLT-A65
+- ILCE-6500
+- ILCE-6600
+- ILCE-6700
+- ILCA-68
+- ILCE-7
+- DSLR-A700
+- SLT-A77
+- ILCA-77M2
+- ILCE-7C
+- ILCE-7CM2
+- ILCE-7CR
+- ILCE-7M2
+- ILCE-7M3
+- ILCE-7M4
+- ILCE-7M5
+- ILCE-7R
+- ILCE-7RM2
+- ILCE-7RM3
+- ILCE-7RM3A
+- ILCE-7RM4
+- ILCE-7RM4A
+- ILCE-7RM5
+- ILCE-7RM6
+- ILCE-7S
+- ILCE-7SM2
+- ILCE-7SM3
+- DSLR-A850
+- ILCE-9
+- DSLR-A900
+- SLT-A99
+- ILCA-99M2
+- ILCE-9M2
+- ILCE-9M3
+- DSC-F828
+- ILME-FX3
+- ILME-FX30
+- DSC-HX95
+- DSC-HX99
+- NEX-3
+- NEX-3N
+- NEX-5
+- NEX-5N
+- NEX-5R
+- NEX-5T
+- NEX-6
+- NEX-7
+- NEX-C3
+- NEX-F3
+- ILCE-QX1
+- DSC-R1
+- DSC-RX0
+- DSC-RX0M2
+- DSC-RX1
+- DSC-RX10
+- DSC-RX100
+- DSC-RX100M2
+- DSC-RX100M3
+- DSC-RX100M4
+- DSC-RX100M5
+- DSC-RX100M5A
+- DSC-RX100M6
+- DSC-RX100M7
+- DSC-RX10M2
+- DSC-RX10M3
+- DSC-RX10M4
+- DSC-RX10M5
+- DSC-RX1R
+- DSC-RX1RM2
+- DSC-RX1RM3
+- UMC-R10C
+- ZV-1
+- ZV-1M2
+- ZV-E1
+- ZV-E10
+- ZV-E10M2
+
