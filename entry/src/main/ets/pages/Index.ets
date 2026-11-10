@@ -2871,6 +2871,8 @@ struct Index {
         }
         .width('100%')
         .padding({ left: 14, right: 14, top: 10, bottom: 10 })
+        // 单栏模式下这条工具栏不用，藏掉：否则会从壳子的顶栏下面透出来
+        .visibility(this.compact ? Visibility.None : Visibility.Visible)
 
         // canvas
         Stack() {
@@ -3508,7 +3510,7 @@ struct Index {
               .width('100%').height(48)
               // 小窗模式下右上角有系统窗口按钮，留出空间
               .padding({ right: 72 })
-              .backgroundColor('#D90B0A08')
+              .backgroundColor('#0B0A08')
               .alignItems(VerticalAlign.Center)
 
               Blank()
@@ -3544,7 +3546,7 @@ struct Index {
                 this.compactTabItem('图库', 5)
               }
               .width('100%').height(58)
-              .backgroundColor('#F20B0A08')
+              .backgroundColor('#0B0A08')
               .border({ width: { top: 1 }, color: '#241F19' })
 
               Row().width('100%').height(px2vp(this.safeBottomPx)).backgroundColor('#F20B0A08')
