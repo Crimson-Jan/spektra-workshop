@@ -3471,6 +3471,7 @@ struct Index {
               }
               .width('100%')
               .padding({ left: 12, right: 12 })
+              this.satSlider(this.postSaturation)
 
               Row() {
                 Text('白场').fontSize(11).fontColor('#A79E8E')
