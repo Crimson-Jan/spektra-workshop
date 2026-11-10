@@ -2505,17 +2505,54 @@ struct Index {
   /** 底部面板：先把壳子跑通，控件随后搬进来。 */
   @Builder
   compactPanel() {
-    Column({ space: 10 }) {
-      Text(this.compactTab === 1 ? '胶片' : this.compactTab === 2 ? '相纸' :
-           this.compactTab === 3 ? '调整' : this.compactTab === 4 ? '片边' : '构图')
-        .fontSize(17).fontColor('#EDE6D8').width('100%')
-      Text('这一格的面板正在接入。').fontSize(13).fontColor('#7A7365').width('100%')
-      Blank()
+    Column() {
+      Row() {
+        Text(this.compactTab === 1 ? '胶片' : this.compactTab === 2 ? '相纸' :
+             this.compactTab === 3 ? '调整' : this.compactTab === 4 ? '片边' : '构图')
+          .fontSize(17).fontColor('#EDE6D8')
+        Blank()
+      }
+      .width('100%').padding({ bottom: 10 })
+
+      if (this.compactTab === 3) {
+        Scroll() {
+          Column() {
+            this.compactRow('胶片曝光', this.ev.toFixed(1))
+            this.paramSlider('ev', this.ev, -3, 3, 0.1, '#161310', '#B4AC9C')
+            this.compactRow('印相曝光', this.printEv.toFixed(1))
+            this.paramSlider('printEv', this.printEv, -2, 2, 0.1, '#161310', '#B4AC9C')
+            this.compactRow('对比度', this.postContrast.toFixed(2))
+            this.paramSlider('postContrast', this.postContrast, -1, 1, 0.05, '#141210', '#A8A093')
+            this.satSlider(this.postSaturation)
+            this.compactRow('饱和度', this.postSaturation.toFixed(2))
+            this.compactRow('白场', this.postWhites.toFixed(2))
+            this.paramSlider('postWhites', this.postWhites, -1, 1, 0.05, '#141210', '#C4BCAC')
+            this.compactRow('黑场', this.postBlacks.toFixed(2))
+            this.paramSlider('postBlacks', this.postBlacks, -1, 1, 0.05, '#0E0D0B', '#6A6357')
+          }
+          .width('100%')
+        }
+        .width('100%').layoutWeight(1).scrollBar(BarState.Auto)
+      } else {
+        Text('这一格的面板正在接入。').fontSize(13).fontColor('#7A7365').width('100%')
+        Blank()
+      }
     }
     .width('100%').height('100%')
     .padding({ left: 22, right: 22, top: 10, bottom: 20 })
     .alignItems(HorizontalAlign.Start)
   }
+
+  @Builder
+  compactRow(label: string, value: string) {
+    Row() {
+      Text(label).fontSize(12).fontColor('#A79E8E')
+      Blank()
+      Text(value).fontSize(12).fontColor(INK)
+    }
+    .width('100%').padding({ top: 8 })
+  }
+
 
   build() {
     Stack() {
@@ -3504,12 +3541,12 @@ struct Index {
                   .backgroundColor(ACCENT)
                   .padding({ left: 14, right: 14, top: 7, bottom: 7 })
                   .borderRadius(7)
-                  .margin({ left: 6, right: 14 })
+                  .margin({ left: 6, right: 18 })
                   .onClick(() => { this.exportOpen = true; })
               }
               .width('100%').height(48)
               // 小窗模式下右上角有系统窗口按钮，留出空间
-              .padding({ right: 72 })
+              .padding({ right: 0 })
               .backgroundColor('#0B0A08')
               .alignItems(VerticalAlign.Center)
 
