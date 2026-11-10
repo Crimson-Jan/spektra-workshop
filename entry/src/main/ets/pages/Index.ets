@@ -2529,8 +2529,8 @@ struct Index {
             this.paramSlider('printEv', this.printEv, -2, 2, 0.1, '#161310', '#B4AC9C')
             this.compactRow('对比度', this.postContrast.toFixed(2))
             this.paramSlider('postContrast', this.postContrast, -1, 1, 0.05, '#141210', '#A8A093')
-            this.satSlider(this.postSaturation)
             this.compactRow('饱和度', this.postSaturation.toFixed(2))
+            this.satSlider(this.postSaturation)
             this.compactRow('白场', this.postWhites.toFixed(2))
             this.paramSlider('postWhites', this.postWhites, -1, 1, 0.05, '#141210', '#C4BCAC')
             this.compactRow('黑场', this.postBlacks.toFixed(2))
@@ -2538,7 +2538,9 @@ struct Index {
           }
           .width('100%')
         }
-        .width('100%').layoutWeight(1).scrollBar(BarState.Auto)
+        .width('100%').layoutWeight(1)
+        .scrollBar(BarState.Auto).scrollBarWidth(3).scrollBarColor('#4C463B')
+        .padding({ right: 8 })
       } else {
         Text('这一格的面板正在接入。').fontSize(13).fontColor('#7A7365').width('100%')
         Blank()
@@ -2548,6 +2550,7 @@ struct Index {
     .padding({ left: 22, right: 22, top: 10, bottom: 16 })
     .backgroundColor('#141210')
     .border({ width: { top: 1 }, color: '#2E2A22' })
+    .borderRadius({ topLeft: 18, topRight: 18 })
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -3175,11 +3178,12 @@ struct Index {
         .padding({ left: 14, right: 14, top: 6, bottom: 6 + (this.stripOpen ? 0 : px2vp(this.safeBottomPx)) })
         .backgroundColor(PANEL_2)
         .border({ width: { top: 1 }, color: LINE })
+        .visibility(this.compact ? Visibility.None : Visibility.Visible)
 
         // Filmstrip, as on the desktop app: pick between imported photographs
         // without leaving the editor. Each tile is a real 180 px render, so the
         // strip shows the grade rather than the raw file.
-        if (this.photos.length > 0 && this.stripOpen) {
+        if (this.photos.length > 0 && this.stripOpen && !this.compact) {
           Row() {
             List({ space: 8 }) {
               ForEach(this.photos, (p: PhotoItem) => {
@@ -3238,6 +3242,7 @@ struct Index {
           .padding({ left: 12, right: 12, top: 6, bottom: 8 + px2vp(this.safeBottomPx) })
           .backgroundColor(PANEL_2)
           .border({ width: { top: 1 }, color: LINE })
+        .visibility(this.compact ? Visibility.None : Visibility.Visible)
         }
       }
       .layoutWeight(1)
@@ -3445,7 +3450,6 @@ struct Index {
               }
               .width('100%')
               .padding({ left: 12, right: 12 })
-              this.satSlider(this.postSaturation)
 
               Row() {
                 Text('白场').fontSize(11).fontColor('#A79E8E')
