@@ -561,7 +561,7 @@ struct Index {
     }
     enlarger += `}`;
     const post =
-      `"post":{"contrast":${this.postContrast.toFixed(3)},"saturation":${this.postSaturation.toFixed(3)},` +
+      `"post":{"contrast":${(this.postContrast * 100).toFixed(1)},"saturation":${(this.postSaturation * 100).toFixed(1)},` +
       `"whites":${this.postWhites.toFixed(3)},"blacks":${this.postBlacks.toFixed(3)}}`;
 
     let io = `"scan_film":${this.scanFilm}`;
