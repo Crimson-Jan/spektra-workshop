@@ -305,6 +305,12 @@ struct Index {
   @State private selectedIds: string[] = [];
   /** 图库上浮面板是否展开。 */
   @State private galleryOpen: boolean = false;
+  /** 手机/平板竖屏：单栏布局。由画布宽度推断，< 620vp 视为紧凑。 */
+  @State private compact: boolean = false;
+  /** 手机底部当前打开的面板：0 构图 1 胶片 2 相纸 3 调整 4 片边 5 图库，-1 无。 */
+  @State private compactTab: number = -1;
+  /** 长按查看原片。 */
+  @State private compareHold: boolean = false;
   @State private activeId: string = '';
   @State private stripOpen: boolean = true;
 
@@ -1975,6 +1981,7 @@ struct Index {
           .offset({ x: side === 1 ? -3.5 : 3.5, y: -px2vp(this.safeTopPx) / 2 })
           .backgroundColor(this.dragSide === side ? ACCENT : '#4C463B')
     }
+    .visibility(this.compact ? Visibility.None : Visibility.Visible)
     .width(14)
     .height('100%')
     .gesture(
@@ -2431,6 +2438,22 @@ struct Index {
     return `显影失败：${raw}`;
   }
 
+  /** 图库展开：带过渡时长，面板上滑与背景渐暗同时开始。 */
+  private openGallery(): void {
+    animateTo({ duration: 300, curve: Curve.FastOutSlowIn }, () => {
+      this.galleryOpen = true;
+    });
+  }
+
+  /** 图库收起：同样的时长反向播放，否则消失是瞬间的。 */
+  private closeGallery(): void {
+    animateTo({ duration: 300, curve: Curve.FastOutSlowIn }, () => {
+      this.galleryOpen = false;
+      this.selectMode = false;
+      this.selectedIds = [];
+    });
+  }
+
   build() {
     Stack() {
       Row() {
@@ -2648,7 +2671,8 @@ struct Index {
           .padding({ left: 14, right: 14 })
         }
       }
-      .width(this.leftW)
+        .width(this.compact ? 0 : this.leftW)
+        .visibility(this.compact ? Visibility.None : Visibility.Visible)
       .height('100%')
       .backgroundColor(PANEL_2)
       .border({ width: { right: 1 }, color: LINE })
@@ -3033,7 +3057,7 @@ struct Index {
               .fontColor(MUTED)
               .padding({ left: 10, right: 2, top: 2, bottom: 2 })
               .onClick(() => {
-                    this.galleryOpen = true;
+                    this.openGallery();
               })
           }
         }
@@ -3377,7 +3401,8 @@ struct Index {
         .layoutWeight(1)
         .scrollBar(BarState.Off)
       }
-      .width(this.rightW)
+        .width(this.compact ? 0 : this.rightW)
+        .visibility(this.compact ? Visibility.None : Visibility.Visible)
       .height('100%')
       .backgroundColor(PANEL)
       .border({ width: { left: 1 }, color: LINE })
@@ -3399,8 +3424,10 @@ struct Index {
                 .width('100%')
                 .height('100%')
                 .backgroundColor('#B8000000')
+                // 背景渐暗，跟面板上滑同时开始，稍快一点收尾
+                .transition(TransitionEffect.OPACITY.animation({ duration: 260, curve: Curve.EaseOut }))
                 .onClick(() => {
-                  this.galleryOpen = false;
+                  this.closeGallery();
                   this.selectMode = false;
                   this.selectedIds = [];
                 })
@@ -3483,7 +3510,7 @@ struct Index {
                           this.toggleSelect(p.id);
                         } else {
                           this.selectPhoto(p.id);
-                          this.galleryOpen = false;
+                          this.closeGallery();
                         }
                       })
                       .gesture(LongPressGesture().onAction(() => {
@@ -3507,6 +3534,12 @@ struct Index {
               }
               .width('100%')
               .height(520)
+              // 自下而上弹出；退出时反向滑下
+              .transition(
+                TransitionEffect.translate({ y: '100%' })
+                  .combine(TransitionEffect.OPACITY)
+                  .animation({ duration: 300, curve: Curve.FastOutSlowIn })
+              )
               .backgroundColor('#141210')
               .borderRadius({ topLeft: 18, topRight: 18 })
               .border({ width: { top: 1 }, color: '#2E2A22' })
