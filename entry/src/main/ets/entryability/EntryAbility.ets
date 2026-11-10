@@ -45,19 +45,6 @@ export default class EntryAbility extends UIAbility {
     });
 
     const mainWindow = windowStage.getMainWindowSync();
-    // 窗口宽度决定页面用单栏还是三栏。必须由窗口给，不能由画布自己量：
-    // 画布宽度是断点的函数，用它判断会形成「收栏→变宽→跳回」的死循环。
-    try {
-      const rect = mainWindow.getWindowProperties().windowRect;
-      AppStorage.setOrCreate('windowWidthPx', rect.width);
-      AppStorage.setOrCreate('windowHeightPx', rect.height);
-      mainWindow.on('windowSizeChange', (size: window.Size) => {
-        AppStorage.setOrCreate('windowWidthPx', size.width);
-        AppStorage.setOrCreate('windowHeightPx', size.height);
-      });
-    } catch (e) {
-      hilog.error(DOMAIN, TAG, 'window size probe failed: %{public}s', (e as Error).message);
-    }
     // Same colour as the page background, so the icons sit on the app rather
     // than on a band of another colour.
     mainWindow.setWindowSystemBarProperties({

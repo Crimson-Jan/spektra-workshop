@@ -15,10 +15,9 @@ import { fileIo as fs, picker } from '@kit.CoreFileKit';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
 import { common } from '@kit.AbilityKit';
 import { util } from '@kit.ArkTS';
-import { router } from '@kit.ArkUI';
+import { router, window } from '@kit.ArkUI';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { image as imageKit } from '@kit.ImageKit';
-import { display } from '@kit.ArkUI';
 import { PrivacyStore } from '../common/PrivacyStore';
 import native, { CropRect, FilmEntry, ImportedPreset, PaperEntry, ProfileCatalog, RenderRequest, RenderResult, SolveRequest, SolveResult } from 'libspektrafilmoh.so';
 
@@ -306,17 +305,8 @@ struct Index {
   @State private selectedIds: string[] = [];
   /** 图库上浮面板是否展开。 */
   @State private galleryOpen: boolean = false;
-  /** 手机/平板竖屏：单栏布局。由画布宽度推断，< 620vp 视为紧凑。 */
+  /** 单栏布局：窗口比宽度更高时启用（手机、平板竖屏、竖长小窗）。 */
   @State private compact: boolean = false;
-  /** 窗口宽度（px），由 EntryAbility 推送；用它判断断点，不能用画布宽度。 */
-  @StorageProp('windowWidthPx') @Watch('onWindowResize') private windowWidthPx: number = 0;
-  @StorageProp('windowHeightPx') private windowHeightPx: number = 0;
-  /** 手机底部当前打开的面板：0 构图 1 胶片 2 相纸 3 调整 4 片边 5 图库，-1 无。 */
-  @State private compactTab: number = -1;
-  /** 底部面板开关，与 compactTab 联动。 */
-  @State private compactSheet: boolean = false;
-  /** 长按查看原片。 */
-  @State private compareHold: boolean = false;
   @State private activeId: string = '';
   @State private stripOpen: boolean = true;
 
@@ -410,7 +400,7 @@ struct Index {
   private lastPreviewPath: string = '';
 
   aboutToAppear(): void {
-    this.onWindowResize();
+    this.watchWindowShape();
     this.askPrivacy();
   }
 
@@ -2461,73 +2451,28 @@ struct Index {
     });
   }
 
-  /** 底部六格里的一格。 */
-  @Builder
-  compactTabItem(label: string, index: number) {
-    Column() {
-      Text(label)
-        .fontSize(12)
-        .fontColor(this.compactTab === index ? '#1A1713' : '#A79E8E')
-        .backgroundColor(this.compactTab === index ? ACCENT : Color.Transparent)
-        .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-        .borderRadius(6)
-    }
-    .layoutWeight(1)
-    .height('100%')
-    .justifyContent(FlexAlign.Center)
-    .onClick(() => {
-      if (index === 5) {
-        this.openGallery();
-      } else if (index === 0) {
-        this.compactTab = 0;
-        this.compactSheet = true;
-      } else {
-        this.compactTab = index;
-        this.compactSheet = true;
-      }
-    })
-  }
-
-  /** 底部面板的临时内容：先把壳跑通，具体控件随后搬进来。 */
-  @Builder
-  compactPanel() {
-    Column({ space: 12 }) {
-      Text(this.compactTab === 1 ? '胶片' : this.compactTab === 2 ? '相纸' : this.compactTab === 3 ? '调整' : '片边')
-        .fontSize(17)
-        .fontColor('#EDE6D8')
-        .width('100%')
-      Text('这一格的面板正在接入，暂时请在平板上编辑。')
-        .fontSize(13)
-        .fontColor('#7A7365')
-        .width('100%')
-      Blank()
-    }
-    .width('100%')
-    .height('100%')
-    .padding({ left: 22, right: 22, top: 10, bottom: 20 })
-    .alignItems(HorizontalAlign.Start)
-  }
-
-  /** 窗口尺寸变化时重算断点。620vp 以下按单栏处理。 */
-  private onWindowResize(): void {
-    // 用显示器密度自己换算：px2vp 依赖 UI 上下文，窗口事件回调里不可靠，
-    // 小窗切全屏后拿到过 0 或过期的宽度，于是被误判回三栏。
-    let density = 2;
+  /**
+   * 用窗口自身的宽高比决定单栏还是三栏。
+   *
+   * 之前三次都失败：画布宽度会自我反馈、windowSizeChange 在能力里不送达、
+   * mediaquery 的 orientation 跟的是设备朝向。这里直接取窗口矩形，窗口本身
+   * 就是判断依据，不经过任何中间量。
+   */
+  private async watchWindowShape(): Promise<void> {
     try {
-      density = display.getDefaultDisplaySync().densityPixels;
+      const ctx = AppStorage.get<common.UIAbilityContext>('abilityContext');
+      if (ctx === undefined) {
+        return;
+      }
+      const win = await window.getLastWindow(ctx);
+      const rect = win.getWindowProperties().windowRect;
+      this.compact = rect.height > rect.width;
+      win.on('windowSizeChange', (size: window.Size) => {
+        this.compact = size.height > size.width;
+      });
     } catch (e) {
-      density = 2;
+      this.compact = false;
     }
-    let px = this.windowWidthPx;
-    let py = this.windowHeightPx;
-    if (px <= 0 || py <= 0) {
-      const d = display.getDefaultDisplaySync();
-      px = d.width;
-      py = d.height;
-    }
-    const vp = px / density;
-    const hp = py / density;
-    this.compact = vp > 0 && (vp < 620 || hp > vp);
   }
 
   build() {
@@ -3492,89 +3437,6 @@ struct Index {
       .padding({ top: px2vp(this.safeTopPx) })
 
       this.exportDialog()
-          // —— 紧凑模式的操作层：顶栏 / 对比按钮 / 底部六格 ——
-          if (this.compact) {
-            Column() {
-              Row({ space: 6 }) {
-                Text('导入')
-                  .fontSize(13).fontColor('#C9BDA6')
-                  .padding({ left: 14, right: 12, top: 6, bottom: 6 })
-                  .onClick(() => { this.pickSource(); })
-                Text('视图')
-                  .fontSize(13).fontColor('#C9BDA6')
-                  .padding({ left: 10, right: 10, top: 6, bottom: 6 })
-                  .bindMenu(this.viewMenu)
-                Blank()
-                Text('↶')
-                  .fontSize(17)
-                  .fontColor(this.undoStack.length > 0 ? '#C9BDA6' : '#3E3A33')
-                  .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-                  .onClick(() => { this.undo(); })
-                Text('↷')
-                  .fontSize(17)
-                  .fontColor(this.redoStack.length > 0 ? '#C9BDA6' : '#3E3A33')
-                  .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-                  .onClick(() => { this.redo(); })
-                Text('导出')
-                  .fontSize(13).fontColor('#1A1713')
-                  .backgroundColor(ACCENT)
-                  .padding({ left: 14, right: 14, top: 6, bottom: 6 })
-                  .borderRadius(6)
-                  .margin({ left: 4, right: 14 })
-                  .onClick(() => { this.exportOpen = true; })
-              }
-              .width('100%')
-              .height(46)
-              .backgroundColor('#D90B0A08')
-              .alignItems(VerticalAlign.Center)
-
-              Blank()
-
-              // 对比：按住看原片，压在图片右下、工具条上方
-              Row() {
-                Blank()
-                Stack() {
-                  Text('对比')
-                    .fontSize(11)
-                    .fontColor(this.compareHold ? '#1A1713' : '#E8E0D0')
-                }
-                .width(54).height(54)
-                .borderRadius(27)
-                .backgroundColor(this.compareHold ? ACCENT : '#8C1C1915')
-                .border({ width: 1, color: '#4C463B' })
-                .margin({ right: 16, bottom: 16 })
-                .onTouch((e: TouchEvent) => {
-                  if (e.type === TouchType.Down) {
-                    this.compareHold = true;
-                    this.showOriginal = true;
-                  } else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
-                    this.compareHold = false;
-                    this.showOriginal = false;
-                  }
-                })
-              }
-              .width('100%')
-
-              Row() {
-                this.compactTabItem('构图', 0)
-                this.compactTabItem('胶片', 1)
-                this.compactTabItem('相纸', 2)
-                this.compactTabItem('调整', 3)
-                this.compactTabItem('片边', 4)
-                this.compactTabItem('图库', 5)
-              }
-              .width('100%')
-              .height(58)
-              .backgroundColor('#F20B0A08')
-              .border({ width: { top: 1 }, color: '#241F19' })
-
-              Row().width('100%').height(px2vp(this.safeBottomPx)).backgroundColor('#F20B0A08')
-            }
-            .width('100%')
-            .height('100%')
-          }
-
-
           // 图库：从底部上浮，盖住主视图，两侧边栏保留但被压暗且不可点。
           if (this.galleryOpen) {
             Stack({ alignContent: Alignment.Bottom }) {
@@ -3725,15 +3587,6 @@ struct Index {
         // 允许下滑收起，但收起后如果还没同意，下次进页面会再弹。
         sheetDismiss.dismiss();
       }
-    })
-    // 手机底部六格对应的小面板
-    .bindSheet($$this.compactSheet, this.compactPanel(), {
-      height: SheetSize.MEDIUM,
-      dragBar: true,
-      showClose: false,
-      backgroundColor: '#141210',
-      maskColor: '#AA000000',
-      onDisappear: () => { this.compactTab = -1; }
     })
   }
 }
