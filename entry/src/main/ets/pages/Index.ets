@@ -3506,6 +3506,8 @@ struct Index {
                   .onClick(() => { this.exportOpen = true; })
               }
               .width('100%').height(48)
+              // 小窗模式下右上角有系统窗口按钮，留出空间
+              .padding({ right: 72 })
               .backgroundColor('#D90B0A08')
               .alignItems(VerticalAlign.Center)
 
@@ -3548,6 +3550,8 @@ struct Index {
               Row().width('100%').height(px2vp(this.safeBottomPx)).backgroundColor('#F20B0A08')
             }
             .width('100%').height('100%')
+            // 状态栏是沉浸式的，壳子整体下沉一个安全区高度，否则按钮被挡住
+            .padding({ top: px2vp(this.safeTopPx) })
           }
 
           // 图库：从底部上浮，盖住主视图，两侧边栏保留但被压暗且不可点。
