@@ -311,6 +311,8 @@ struct Index {
   @State private rendering: boolean = false;
   /** 撤销后让滑块重建，手柄才会跟着状态走。 */
   @State private sliderEpoch: number = 0;
+  /** 重建滑块时系统会以旧值回调一次 onChange，吞掉它，否则会把刚恢复的值冲掉。 */
+  private suppressEcho: boolean = false;
   @State private lastRender: string = 'idle';
   @State private compactTab: number = -1;
   @State private compactSheet: boolean = false;
@@ -1266,6 +1268,7 @@ struct Index {
 
   private undo(): void {
     this.sliderEpoch++;
+    this.suppressEcho = true;
     if (this.undoStack.length === 0 || this.busy) {
       return;
     }
@@ -1274,11 +1277,11 @@ struct Index {
     this.undoStack = this.undoStack.slice(0, this.undoStack.length - 1);
     this.redoStack = this.redoStack.concat([current]);
     this.restore(target);
-    this.sliderEpoch++;
   }
 
   private redo(): void {
     this.sliderEpoch++;
+    this.suppressEcho = true;
     if (this.redoStack.length === 0 || this.busy) {
       return;
     }
@@ -2057,6 +2060,10 @@ struct Index {
 
   /** Writes a slider back to its own field; the ramps share one call site. */
   private setParam(which: string, v: number): void {
+    if (this.suppressEcho) {
+      this.suppressEcho = false;
+      return;
+    }
     if (which === 'ev') {
       this.ev = v;
     } else if (which === 'temperature') {
