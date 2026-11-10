@@ -2104,6 +2104,8 @@ struct Index {
         .blockSize({ width: 10, height: 10 })
         .width('90%')
         .onChange((v: number) => { this.setParam('postSaturation', v); })
+        // 和 paramSlider 一样：撤销后靠换 id 让手柄重新归位
+        .id('sat:' + this.sliderEpoch.toString())
     }
     .width('100%')
     .height(36)
