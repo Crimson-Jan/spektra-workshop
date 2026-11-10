@@ -562,7 +562,7 @@ struct Index {
     enlarger += `}`;
     const post =
       `"post":{"contrast":${(this.postContrast * 100).toFixed(1)},"saturation":${(this.postSaturation * 100).toFixed(1)},` +
-      `"whites":${this.postWhites.toFixed(3)},"blacks":${this.postBlacks.toFixed(3)}}`;
+      `"whites":${(this.postWhites * 100).toFixed(1)},"blacks":${(this.postBlacks * 100).toFixed(1)}}`;
 
     let io = `"scan_film":${this.scanFilm}`;
     io += `,"lens_correction":{"enabled":${this.lensCorrection}}`;
@@ -1274,6 +1274,7 @@ struct Index {
     this.undoStack = this.undoStack.slice(0, this.undoStack.length - 1);
     this.redoStack = this.redoStack.concat([current]);
     this.restore(target);
+    this.sliderEpoch++;
   }
 
   private redo(): void {
