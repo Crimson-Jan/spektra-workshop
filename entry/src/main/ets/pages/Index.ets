@@ -18,6 +18,7 @@ import { util } from '@kit.ArkTS';
 import { router } from '@kit.ArkUI';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { image as imageKit } from '@kit.ImageKit';
+import { display } from '@kit.ArkUI';
 import { PrivacyStore } from '../common/PrivacyStore';
 import native, { CropRect, FilmEntry, ImportedPreset, PaperEntry, ProfileCatalog, RenderRequest, RenderResult, SolveRequest, SolveResult } from 'libspektrafilmoh.so';
 
@@ -307,6 +308,9 @@ struct Index {
   @State private galleryOpen: boolean = false;
   /** 手机/平板竖屏：单栏布局。由画布宽度推断，< 620vp 视为紧凑。 */
   @State private compact: boolean = false;
+  /** 窗口宽度（px），由 EntryAbility 推送；用它判断断点，不能用画布宽度。 */
+  @StorageProp('windowWidthPx') @Watch('onWindowResize') private windowWidthPx: number = 0;
+  @StorageProp('windowHeightPx') private windowHeightPx: number = 0;
   /** 手机底部当前打开的面板：0 构图 1 胶片 2 相纸 3 调整 4 片边 5 图库，-1 无。 */
   @State private compactTab: number = -1;
   /** 底部面板开关，与 compactTab 联动。 */
@@ -406,6 +410,7 @@ struct Index {
   private lastPreviewPath: string = '';
 
   aboutToAppear(): void {
+    this.onWindowResize();
     this.askPrivacy();
   }
 
@@ -2503,6 +2508,28 @@ struct Index {
     .alignItems(HorizontalAlign.Start)
   }
 
+  /** 窗口尺寸变化时重算断点。620vp 以下按单栏处理。 */
+  private onWindowResize(): void {
+    // 用显示器密度自己换算：px2vp 依赖 UI 上下文，窗口事件回调里不可靠，
+    // 小窗切全屏后拿到过 0 或过期的宽度，于是被误判回三栏。
+    let density = 2;
+    try {
+      density = display.getDefaultDisplaySync().densityPixels;
+    } catch (e) {
+      density = 2;
+    }
+    let px = this.windowWidthPx;
+    let py = this.windowHeightPx;
+    if (px <= 0 || py <= 0) {
+      const d = display.getDefaultDisplaySync();
+      px = d.width;
+      py = d.height;
+    }
+    const vp = px / density;
+    const hp = py / density;
+    this.compact = vp > 0 && (vp < 620 || hp > vp);
+  }
+
   build() {
     Stack() {
       Row() {
@@ -3013,8 +3040,6 @@ struct Index {
         .clip(true)
         .onAreaChange((_old: Area, now: Area) => {
           this.canvasW = Number(now.width);
-      // 620vp 以下按单栏处理：手机、以及平板竖屏
-      this.compact = this.canvasW < 620;
           this.canvasH = Number(now.height);
         })
         .gesture(
