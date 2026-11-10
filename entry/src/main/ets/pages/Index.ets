@@ -3471,7 +3471,7 @@ struct Index {
               }
               .width('100%')
               .padding({ left: 12, right: 12 })
-              this.paramSlider('postContrast', this.postContrast, -1, 1, 0.05, '#141210', '#A8A093')
+              SliderRow({ value: $postContrast, from: '#141210', to: '#A8A093', onChanged: () => { this.schedulePreview(); } })
 
               Row() {
                 Text('饱和度').fontSize(11).fontColor('#A79E8E')
@@ -3480,7 +3480,7 @@ struct Index {
               }
               .width('100%')
               .padding({ left: 12, right: 12 })
-              this.satSlider(this.postSaturation)
+              SliderRow({ value: $postSaturation, from: '#2B2B29', to: '#4E2F3F', onChanged: () => { this.schedulePreview(); } })
 
               Row() {
                 Text('白场').fontSize(11).fontColor('#A79E8E')
@@ -3489,7 +3489,7 @@ struct Index {
               }
               .width('100%')
               .padding({ left: 12, right: 12 })
-              this.paramSlider('postWhites', this.postWhites, -1, 1, 0.05, '#141210', '#C4BCAC')
+              SliderRow({ value: $postWhites, from: '#141210', to: '#C4BCAC', onChanged: () => { this.schedulePreview(); } })
 
               Row() {
                 Text('黑场').fontSize(11).fontColor('#A79E8E')
@@ -3498,7 +3498,7 @@ struct Index {
               }
               .width('100%')
               .padding({ left: 12, right: 12 })
-              this.paramSlider('postBlacks', this.postBlacks, -1, 1, 0.05, '#0E0D0B', '#6A6357')
+              SliderRow({ value: $postBlacks, from: '#0E0D0B', to: '#6A6357', onChanged: () => { this.schedulePreview(); } })
             }
 
             Divider().color(LINE)
@@ -3952,5 +3952,46 @@ struct FormatDialog {
     .borderRadius(14)
     .border({ width: 1, color: '#2E2A22' })
     .alignItems(HorizontalAlign.Start)
+  }
+}
+
+/**
+ * 一根带渐变轨道的滑条。
+ *
+ * 用 @Link + $$ 双向绑定，状态和手柄天然同步：撤回、重做、外部改动都会
+ * 让手柄跟着走，不需要靠换 id 强制重建（那条路在重做时并不可靠）。
+ */
+@Component
+struct SliderRow {
+  @Link value: number;
+  @Prop min: number = -1;
+  @Prop max: number = 1;
+  @Prop step: number = 0.05;
+  @Prop from: string = '#141210';
+  @Prop to: string = '#A8A093';
+  onChanged?: () => void;
+
+  build() {
+    Stack() {
+      Row()
+        .width('90%')
+        .height(4)
+        .borderRadius(2)
+        .linearGradient({ angle: 90, colors: [[this.from, 0.0], [this.to, 1.0]] })
+      Slider({ value: $$this.value, min: this.min, max: this.max, step: this.step, style: SliderStyle.OutSet })
+        .selectedColor(Color.Transparent)
+        .trackColor(Color.Transparent)
+        .blockColor('#CFC7B8')
+        .blockSize({ width: 10, height: 10 })
+        .width('90%')
+        .onChange((v: number) => {
+          this.value = v;
+          if (this.onChanged !== undefined) {
+            this.onChanged();
+          }
+        })
+    }
+    .width('100%')
+    .height(36)
   }
 }
