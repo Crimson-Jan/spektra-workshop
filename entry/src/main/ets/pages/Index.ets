@@ -309,6 +309,8 @@ struct Index {
   @State private compact: boolean = false;
   /** 手机底部当前打开的面板：0 构图 1 胶片 2 相纸 3 调整 4 片边 5 图库，-1 无。 */
   @State private compactTab: number = -1;
+  /** 底部面板开关，与 compactTab 联动。 */
+  @State private compactSheet: boolean = false;
   /** 长按查看原片。 */
   @State private compareHold: boolean = false;
   @State private activeId: string = '';
@@ -2454,6 +2456,53 @@ struct Index {
     });
   }
 
+  /** 底部六格里的一格。 */
+  @Builder
+  compactTabItem(label: string, index: number) {
+    Column() {
+      Text(label)
+        .fontSize(12)
+        .fontColor(this.compactTab === index ? '#1A1713' : '#A79E8E')
+        .backgroundColor(this.compactTab === index ? ACCENT : Color.Transparent)
+        .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+        .borderRadius(6)
+    }
+    .layoutWeight(1)
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .onClick(() => {
+      if (index === 5) {
+        this.openGallery();
+      } else if (index === 0) {
+        this.compactTab = 0;
+        this.compactSheet = true;
+      } else {
+        this.compactTab = index;
+        this.compactSheet = true;
+      }
+    })
+  }
+
+  /** 底部面板的临时内容：先把壳跑通，具体控件随后搬进来。 */
+  @Builder
+  compactPanel() {
+    Column({ space: 12 }) {
+      Text(this.compactTab === 1 ? '胶片' : this.compactTab === 2 ? '相纸' : this.compactTab === 3 ? '调整' : '片边')
+        .fontSize(17)
+        .fontColor('#EDE6D8')
+        .width('100%')
+      Text('这一格的面板正在接入，暂时请在平板上编辑。')
+        .fontSize(13)
+        .fontColor('#7A7365')
+        .width('100%')
+      Blank()
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ left: 22, right: 22, top: 10, bottom: 20 })
+    .alignItems(HorizontalAlign.Start)
+  }
+
   build() {
     Stack() {
       Row() {
@@ -2964,6 +3013,8 @@ struct Index {
         .clip(true)
         .onAreaChange((_old: Area, now: Area) => {
           this.canvasW = Number(now.width);
+      // 620vp 以下按单栏处理：手机、以及平板竖屏
+      this.compact = this.canvasW < 620;
           this.canvasH = Number(now.height);
         })
         .gesture(
@@ -3416,6 +3467,89 @@ struct Index {
       .padding({ top: px2vp(this.safeTopPx) })
 
       this.exportDialog()
+          // —— 紧凑模式的操作层：顶栏 / 对比按钮 / 底部六格 ——
+          if (this.compact) {
+            Column() {
+              Row({ space: 6 }) {
+                Text('导入')
+                  .fontSize(13).fontColor('#C9BDA6')
+                  .padding({ left: 14, right: 12, top: 6, bottom: 6 })
+                  .onClick(() => { this.pickSource(); })
+                Text('视图')
+                  .fontSize(13).fontColor('#C9BDA6')
+                  .padding({ left: 10, right: 10, top: 6, bottom: 6 })
+                  .bindMenu(this.viewMenu)
+                Blank()
+                Text('↶')
+                  .fontSize(17)
+                  .fontColor(this.undoStack.length > 0 ? '#C9BDA6' : '#3E3A33')
+                  .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+                  .onClick(() => { this.undo(); })
+                Text('↷')
+                  .fontSize(17)
+                  .fontColor(this.redoStack.length > 0 ? '#C9BDA6' : '#3E3A33')
+                  .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+                  .onClick(() => { this.redo(); })
+                Text('导出')
+                  .fontSize(13).fontColor('#1A1713')
+                  .backgroundColor(ACCENT)
+                  .padding({ left: 14, right: 14, top: 6, bottom: 6 })
+                  .borderRadius(6)
+                  .margin({ left: 4, right: 14 })
+                  .onClick(() => { this.exportOpen = true; })
+              }
+              .width('100%')
+              .height(46)
+              .backgroundColor('#D90B0A08')
+              .alignItems(VerticalAlign.Center)
+
+              Blank()
+
+              // 对比：按住看原片，压在图片右下、工具条上方
+              Row() {
+                Blank()
+                Stack() {
+                  Text('对比')
+                    .fontSize(11)
+                    .fontColor(this.compareHold ? '#1A1713' : '#E8E0D0')
+                }
+                .width(54).height(54)
+                .borderRadius(27)
+                .backgroundColor(this.compareHold ? ACCENT : '#8C1C1915')
+                .border({ width: 1, color: '#4C463B' })
+                .margin({ right: 16, bottom: 16 })
+                .onTouch((e: TouchEvent) => {
+                  if (e.type === TouchType.Down) {
+                    this.compareHold = true;
+                    this.showOriginal = true;
+                  } else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
+                    this.compareHold = false;
+                    this.showOriginal = false;
+                  }
+                })
+              }
+              .width('100%')
+
+              Row() {
+                this.compactTabItem('构图', 0)
+                this.compactTabItem('胶片', 1)
+                this.compactTabItem('相纸', 2)
+                this.compactTabItem('调整', 3)
+                this.compactTabItem('片边', 4)
+                this.compactTabItem('图库', 5)
+              }
+              .width('100%')
+              .height(58)
+              .backgroundColor('#F20B0A08')
+              .border({ width: { top: 1 }, color: '#241F19' })
+
+              Row().width('100%').height(px2vp(this.safeBottomPx)).backgroundColor('#F20B0A08')
+            }
+            .width('100%')
+            .height('100%')
+          }
+
+
           // 图库：从底部上浮，盖住主视图，两侧边栏保留但被压暗且不可点。
           if (this.galleryOpen) {
             Stack({ alignContent: Alignment.Bottom }) {
@@ -3566,6 +3700,15 @@ struct Index {
         // 允许下滑收起，但收起后如果还没同意，下次进页面会再弹。
         sheetDismiss.dismiss();
       }
+    })
+    // 手机底部六格对应的小面板
+    .bindSheet($$this.compactSheet, this.compactPanel(), {
+      height: SheetSize.MEDIUM,
+      dragBar: true,
+      showClose: false,
+      backgroundColor: '#141210',
+      maskColor: '#AA000000',
+      onDisappear: () => { this.compactTab = -1; }
     })
   }
 }
