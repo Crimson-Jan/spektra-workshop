@@ -1267,8 +1267,6 @@ struct Index {
   }
 
   private undo(): void {
-    this.sliderEpoch++;
-    this.suppressEcho = true;
     if (this.undoStack.length === 0 || this.busy) {
       return;
     }
@@ -1280,8 +1278,6 @@ struct Index {
   }
 
   private redo(): void {
-    this.sliderEpoch++;
-    this.suppressEcho = true;
     if (this.redoStack.length === 0 || this.busy) {
       return;
     }
@@ -1293,6 +1289,9 @@ struct Index {
   }
 
   private restore(target: LookState): void {
+    // 撤回和重做都从这里落地，顺序一致才不会只有一边生效
+    this.suppressEcho = true;
+    this.sliderEpoch++;
     this.restoringHistory = true;
     this.applyLook(target);
     this.lastLook = this.captureLook();
