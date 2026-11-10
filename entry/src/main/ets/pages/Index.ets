@@ -307,6 +307,11 @@ struct Index {
   @State private galleryOpen: boolean = false;
   /** 单栏布局：窗口比宽度更高时启用（手机、平板竖屏、竖长小窗）。 */
   @State private compact: boolean = false;
+  /** 渲染状态：给界面一个明确反馈，免得靠猜。 */
+  @State private rendering: boolean = false;
+  /** 撤销后让滑块重建，手柄才会跟着状态走。 */
+  @State private sliderEpoch: number = 0;
+  @State private lastRender: string = 'idle';
   @State private compactTab: number = -1;
   @State private compactSheet: boolean = false;
   @State private compareHold: boolean = false;
@@ -658,7 +663,10 @@ struct Index {
         paper: this.currentPaper(),
         params: this.buildParams(1280)
       };
+      this.rendering = true;
       const result: RenderResult = await native.renderFile(request);
+      this.rendering = false;
+      this.lastRender = 'ok';
       if (this.composePath.length > 0) {
         this.removeQuietly(this.composePath);
       }
@@ -998,7 +1006,10 @@ struct Index {
       if (border.length > 0) {
         request.border = border;
       }
+      this.rendering = true;
       const result: RenderResult = await native.renderFile(request);
+      this.rendering = false;
+      this.lastRender = 'ok';
       if (crop === null && result.height > 0) {
         this.srcAspect = result.width / result.height;
       }
@@ -1008,6 +1019,8 @@ struct Index {
       this.status = '预览已更新';
     } catch (e) {
         this.status = this.humanizeError((e as BusinessError).message);
+        this.rendering = false;
+        this.lastRender = 'failed';
     } finally {
       this.busy = false;
       if (this.previewQueued) {
@@ -1252,6 +1265,7 @@ struct Index {
   }
 
   private undo(): void {
+    this.sliderEpoch++;
     if (this.undoStack.length === 0 || this.busy) {
       return;
     }
@@ -1263,6 +1277,7 @@ struct Index {
   }
 
   private redo(): void {
+    this.sliderEpoch++;
     if (this.redoStack.length === 0 || this.busy) {
       return;
     }
@@ -1439,7 +1454,10 @@ struct Index {
           request.border = border;
         }
       }
+      this.rendering = true;
       const result: RenderResult = await native.renderFile(request);
+      this.rendering = false;
+      this.lastRender = 'ok';
       this.status = `已显影 ${result.width}×${result.height}（${result.elapsedMs} ms）`;
       if (result.width * result.height > BIG_FRAME_PX) {
         this.status = `${result.width}×${result.height} 完成（大图，内存紧张时可能失败）`;
@@ -2022,6 +2040,9 @@ struct Index {
         .borderRadius(2)
         .linearGradient({ angle: 90, colors: [[from, 0.0], [to, 1.0]] })
       Slider({ value: value, min: min, max: max, step: step, style: SliderStyle.OutSet })
+        // Slider 的 value 只在构造时取一次；撤销改了状态，手柄却不跟着动。
+        // 用 id 换代：撤销时 ++epoch，Slider 被重建，手柄归位。拖拽期间 epoch 不变。
+        .id(which + ':' + this.sliderEpoch.toString())
         .selectedColor(Color.Transparent)
         .trackColor(Color.Transparent)
         .blockColor('#CFC7B8')
@@ -3538,6 +3559,9 @@ struct Index {
                   .padding({ left: 14, right: 10, top: 6, bottom: 6 })
                   .onClick(() => { this.pickSource(); })
                 Text('视图').fontSize(13).fontColor('#C9BDA6')
+                Text(this.rendering ? '渲染中…' : this.lastRender)
+                  .fontSize(10).fontColor(this.rendering ? '#C9A227' : '#5E584E')
+                  .padding({ left: 6 })
                   .padding({ left: 8, right: 8, top: 6, bottom: 6 })
                   .bindMenu(this.viewMenu)
                 Blank()
@@ -3635,6 +3659,9 @@ struct Index {
                     .fontColor('#7A7365')
                     .padding({ left: 8 })
                   Blank()
+                Text(this.rendering ? 'rendering' : this.lastRender)
+                  .fontSize(10).fontColor(this.rendering ? '#C9A227' : '#5E584E')
+                  .padding({ right: 8 })
                   if (this.selectMode) {
                     Text('移除')
                       .fontSize(13)
