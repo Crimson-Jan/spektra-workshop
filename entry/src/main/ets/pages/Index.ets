@@ -18,6 +18,7 @@ import { util } from '@kit.ArkTS';
 import { router } from '@kit.ArkUI';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { image as imageKit } from '@kit.ImageKit';
+import { PrivacyStore } from '../common/PrivacyStore';
 import native, { CropRect, FilmEntry, ImportedPreset, PaperEntry, ProfileCatalog, RenderRequest, RenderResult, SolveRequest, SolveResult } from 'libspektrafilmoh.so';
 
 
@@ -96,6 +97,7 @@ interface LookState {
   lensCorrection: boolean;
   temperature: number;
   tint: number;
+  wbCustom: boolean;
   printEv: number;
   postContrast: number;
   postSaturation: number;
@@ -228,6 +230,10 @@ function badgeKind(film: FilmEntry): string {
 struct Index {
   @State private engineVersion: string = '';
   @State private ready: boolean = false;
+  /** False until the user accepts the privacy policy. Nothing else runs before that. */
+  @State private privacyAccepted: boolean = false;
+  /** Drives the half-modal sheet; the sheet is the consent surface itself. */
+  @State private privacySheet: boolean = false;
   @State private busy: boolean = false;
   @State private status: string = '正在解压光谱数据…';
   @State private films: FilmEntry[] = [];
@@ -247,6 +253,8 @@ struct Index {
   @State private temperature: number = 5500;
   /** RAW tint: 1.0 is neutral, below leans green, above magenta. */
   @State private tint: number = 1.0;
+  /** 默认用 RAW 自带白平衡（as_shot）；用户动过色温/色调才切 custom。 */
+  @State private wbCustom: boolean = false;
   /**
    * Print exposure in stops, applied as a multiplier. The engine's
    * `print_exposure` is absolute (1.0 = as metered, 0.0 = an unexposed white
@@ -292,6 +300,11 @@ struct Index {
   @State private sourceUri: string = '';
   // --- bottom strip ---
   @State private photos: PhotoItem[] = [];
+  /** 图库多选：长按任一张进入选择模式。 */
+  @State private selectMode: boolean = false;
+  @State private selectedIds: string[] = [];
+  /** 图库上浮面板是否展开。 */
+  @State private galleryOpen: boolean = false;
   @State private activeId: string = '';
   @State private stripOpen: boolean = true;
 
@@ -377,7 +390,7 @@ struct Index {
   private lastPreviewPath: string = '';
 
   aboutToAppear(): void {
-    this.boot();
+    this.askPrivacy();
   }
 
   aboutToDisappear(): void {
@@ -387,6 +400,28 @@ struct Index {
     if (this.commitTimer >= 0) {
       clearTimeout(this.commitTimer);
     }
+  }
+
+  /**
+   * 首次启动必须让用户明确同意隐私政策，否则上架审核不通过。
+   * 已同意就照常启动；未同意先弹窗，业务逻辑一行都不跑。
+   */
+  private async askPrivacy(): Promise<void> {
+    const accepted = await PrivacyStore.isAccepted();
+    this.privacyAccepted = accepted;
+    if (accepted) {
+      this.boot();
+    } else {
+      this.privacySheet = true;
+    }
+  }
+
+  /** 同意后落盘，再启动。 */
+  private async acceptPrivacy(): Promise<void> {
+    await PrivacyStore.accept();
+    this.privacyAccepted = true;
+    this.privacySheet = false;
+    this.boot();
   }
 
   private async boot(): Promise<void> {
@@ -513,7 +548,13 @@ struct Index {
     let io = `"scan_film":${this.scanFilm}`;
     io += `,"lens_correction":{"enabled":${this.lensCorrection}}`;
     // Only RAW files carry white balance; on JPEG/PNG the engine ignores it.
-    io += `,"raw_white_balance":{"mode":"custom","temperature":${this.temperature.toFixed(0)},"tint":${this.tint.toFixed(2)}}`;
+    // 相机在 RAW 里记了拍摄时的白平衡，默认交给解码器用它；
+    // 只有用户手动调过色温/色调，才用我们算出来的值覆盖。
+    if (this.wbCustom) {
+      io += `,"raw_white_balance":{"mode":"custom","temperature":${this.temperature.toFixed(0)},"tint":${this.tint.toFixed(2)}}`;
+    } else {
+      io += `,"raw_white_balance":{"mode":"as_shot"}`;
+    }
     if (longSide > 0) {
       io += `,"photo_long_side_px":${longSide}`;
     }
@@ -952,7 +993,7 @@ struct Index {
       this.frameInfo = `${result.width}×${result.height}`;
       this.status = '预览已更新';
     } catch (e) {
-      this.status = `显影失败：${(e as BusinessError).message}`;
+        this.status = this.humanizeError((e as BusinessError).message);
     } finally {
       this.busy = false;
       if (this.previewQueued) {
@@ -1014,6 +1055,7 @@ struct Index {
       lensCorrection: this.lensCorrection,
       temperature: this.temperature,
       tint: this.tint,
+      wbCustom: this.wbCustom,
       printEv: this.printEv,
       postContrast: this.postContrast,
       postSaturation: this.postSaturation,
@@ -1042,6 +1084,7 @@ struct Index {
     this.lensCorrection = look.lensCorrection;
     this.temperature = look.temperature;
     this.tint = look.tint;
+    this.wbCustom = look.wbCustom;
     this.printEv = look.printEv;
     this.postContrast = look.postContrast;
     this.postSaturation = look.postSaturation;
@@ -1980,10 +2023,13 @@ struct Index {
     if (which === 'ev') {
       this.ev = v;
     } else if (which === 'temperature') {
+      this.wbCustom = true;
       this.temperature = v;
     } else if (which === 'printEv') {
       this.printEv = v;
     } else if (which === 'tint') {
+      // 手动调过白平衡，从此用自定义温度
+      this.wbCustom = true;
       this.tint = v;
     } else if (which === 'postContrast') {
       this.postContrast = v;
@@ -2156,6 +2202,225 @@ struct Index {
         .enabled(this.ready && !this.busy && this.sourceUri.length > 0)
         .onClick(() => { this.openCompose(); })
     }
+  }
+
+  /**
+   * 隐私政策的半模态面板。
+   *
+   * 用官方 bindSheet 而不是自绘弹窗：从底部弹起、顶部有拖拽条、可以拉到
+   * 全屏，动效和手势都是系统提供的，和鸿蒙原生设置页一致。右侧滚动条
+   * 用于快速通读全文。
+   */
+  @Builder
+  privacySheetContent() {
+    Column() {
+      // 顶部一道极淡的高光，让面板和下面的暗背景分开
+      Row()
+        .width('100%')
+        .height(1)
+        .linearGradient({ angle: 180, colors: [['#66FFFFFF', 0.0], ['#00FFFFFF', 1.0]] })
+        // 负边距把这条线拉到面板真正的顶边和左右边缘，而不是内边距以内
+        .margin({ top: -30, left: -40, right: -40, bottom: 24 })
+
+      Text('隐私政策')
+        .fontSize(20)
+        .fontColor('#EDE6D8')
+        .fontWeight(FontWeight.Medium)
+        .width('100%')
+      Text('请阅读以下内容后选择是否同意')
+        .fontSize(13)
+        .fontColor('#7A7365')
+        .width('100%')
+        .padding({ top: 6, bottom: 16 })
+
+      Scroll() {
+        Column() {
+          this.policySection('一、总则',
+            '光谱工坊（包名 com.negs.spektrafilm）是一款本地运行的模拟胶片摄影应用。本政策说明我们如何处理您的信息。')
+          this.policySection('二、图像处理全部在本机完成',
+            '本应用的胶片显影、印相配光、片边合成与导出运算全部在您的设备本地执行。您的照片、编辑参数和导出结果不会上传至任何服务器，应用不具备网络传输功能。')
+          this.policySection('三、文件访问',
+            '应用通过系统文件选择器读取您主动选择的照片。应用不申请相册读取权限，不会访问您未选择的文件，也不会在后台扫描您的相册或存储空间。')
+          this.policySection('四、数据收集',
+            '本应用不收集设备标识符（IMEI、SN、OAID 等），不收集位置信息、通讯录、短信、通话记录，不包含任何统计、广告或第三方 SDK，不需要注册或登录，没有账号体系。')
+          this.policySection('五、导出文件',
+            '导出的图片保存在您指定的本地目录，由您自行管理。应用不在内部保留副本，缓存文件在应用退出后被清理。')
+          this.policySection('六、儿童隐私',
+            '本应用不收集任何个人信息，因此不涉及儿童个人信息收集。建议未满 14 周岁的用户由监护人陪同使用。')
+          this.policySection('七、开源组件',
+            '本应用基于 SpektraLab（GPL-3.0）的引擎移植，整体以 GPL-3.0 分发。源码地址：https://github.com/Crimson-Jan/spektra-workshop 。胶片与相纸的光谱数据由 spektrafilm 提供，按 CC BY-SA 4.0 授权。')
+          this.policySection('八、政策变更',
+            '若本政策发生变更，我们会在应用更新说明中告知，并在应用内更新本页面。')
+          this.policySection('九、联系方式',
+            '如有疑问，可通过应用市场页面留言，或在源码仓库提交 Issue。')
+          Text('在线版本：https://crimson-jan.github.io/spektra-workshop/privacy.html')
+            .fontSize(13)
+            .fontColor('#C9A227')
+            .width('100%')
+            .padding({ top: 4, bottom: 8 })
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+        .padding({ right: 12 })
+      }
+      .width('100%')
+      .layoutWeight(1)
+      .scrollBar(BarState.Auto)
+      .scrollBarWidth(3)
+      .scrollBarColor('#4C463B')
+      .edgeEffect(EdgeEffect.Spring)
+
+      Row({ space: 10 }) {
+        Button('不同意')
+          .fontSize(15)
+          .height(46)
+          .layoutWeight(1)
+          .backgroundColor('#1C1915')
+          .fontColor('#A79E8E')
+          .type(ButtonType.Normal)
+          .borderRadius(10)
+          .onClick(() => { PrivacyStore.exit(); })
+        Button('同意并继续')
+          .fontSize(15)
+          .height(46)
+          .layoutWeight(1)
+          .backgroundColor('#C9A227')
+          .fontColor('#1A1713')
+          .type(ButtonType.Normal)
+          .borderRadius(10)
+          .onClick(() => { this.acceptPrivacy(); })
+      }
+      .width('100%')
+      .padding({ top: 14 })
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ left: 40, right: 40, top: 30, bottom: 22 })
+    .alignItems(HorizontalAlign.Start)
+  }
+
+
+
+  /** 一条条款：小标题 + 正文。 */
+  @Builder
+  policySection(title: string, body: string) {
+    Column() {
+      Text(title)
+        .fontSize(15)
+        .fontColor('#EDE6D8')
+        .fontWeight(FontWeight.Medium)
+        .width('100%')
+      Text(body)
+        .fontSize(14)
+        .lineHeight(23)
+        .fontColor('#A79E8E')
+        .width('100%')
+        .padding({ top: 6 })
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+    .padding({ bottom: 18 })
+  }
+  /** 选中角标：只有选择模式才画。 */
+  @Builder
+  selectBadge(id: string) {
+    if (this.selectMode) {
+      Stack() {
+        if (this.selectedIds.indexOf(id) >= 0) {
+          Text('✓').fontSize(11).fontColor('#1A1713')
+        }
+      }
+      .width(18)
+      .height(18)
+      .borderRadius(9)
+      .backgroundColor(this.selectedIds.indexOf(id) >= 0 ? '#C9A227' : '#66000000')
+      .border({ width: 1, color: this.selectedIds.indexOf(id) >= 0 ? '#C9A227' : '#8C8780' })
+      .margin({ left: 4, top: 4 })
+    }
+  }
+
+  /** 选择模式下切换某张的选中状态。 */
+  private toggleSelect(id: string): void {
+    const at = this.selectedIds.indexOf(id);
+    if (at >= 0) {
+      const next: string[] = [];
+      for (let i = 0; i < this.selectedIds.length; i++) {
+        if (this.selectedIds[i] !== id) {
+          next.push(this.selectedIds[i]);
+        }
+      }
+      this.selectedIds = next;
+    } else {
+      this.selectedIds = this.selectedIds.concat([id]);
+    }
+    if (this.selectedIds.length === 0) {
+      this.selectMode = false;
+    }
+  }
+
+  /** 移除选中项。删掉的是当前这张时，退回上一张或清空画布。 */
+  private removeSelected(): void {
+    const doomed = this.selectedIds;
+    if (doomed.length === 0) {
+      return;
+    }
+    const kept: PhotoItem[] = [];
+    for (let i = 0; i < this.photos.length; i++) {
+      const p = this.photos[i];
+      let drop = false;
+      for (let j = 0; j < doomed.length; j++) {
+        if (doomed[j] === p.id) {
+          drop = true;
+        }
+      }
+      if (drop) {
+        if (p.thumb.length > 7) {
+          this.removeQuietly(p.thumb.replace('file://', ''));
+        }
+        if (p.path.length > 0) {
+          this.removeQuietly(p.path);
+        }
+      } else {
+        kept.push(p);
+      }
+    }
+    const lostActive = doomed.indexOf(this.activeId) >= 0;
+    this.photos = kept;
+    this.selectedIds = [];
+    this.selectMode = false;
+    if (kept.length === 0) {
+      this.activeId = '';
+      this.sourceUri = '';
+      this.previewUri = '';
+      this.stripOpen = false;
+      this.status = '已移除全部照片';
+      return;
+    }
+    if (lostActive) {
+      this.selectPhoto(kept[0].id);
+    }
+    this.status = `已移除 ${doomed.length} 张`;
+  }
+
+  /**
+   * 把引擎的英文错误翻译成用户能照着做的提示。
+   *
+   * 目前最要紧的是 ARW6：索尼 A7 V 这类新机型的压缩 RAW 用了一种小波编码，
+   * 现用的 rawler 只留了 unimplemented!() 占位，连华为图库都打不开。这不是
+   * 应用能修的，但可以让用户知道该改相机设置。
+   */
+  private humanizeError(raw: string): string {
+    const lower = raw.toLowerCase();
+    if (lower.indexOf('arw6') >= 0 || lower.indexOf('unknown camera') >= 0) {
+      return '这张 RAW 用了较新的压缩格式（ARW6），当前解码器暂不支持。请在相机设置把「RAW 文件类型」改为未压缩后重新拍摄，或改用 JPEG。';
+    }
+    if (lower.indexOf('unsupported') >= 0) {
+      return `这个文件格式暂不支持：${raw}`;
+    }
+    if (lower.indexOf('no such file') >= 0 || lower.indexOf('not found') >= 0) {
+      return '找不到文件，可能已被移动或删除。';
+    }
+    return `显影失败：${raw}`;
   }
 
   build() {
@@ -2728,12 +2993,36 @@ struct Index {
           Blank()
           Text(this.status).fontSize(10).fontColor(DIM).maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
-          if (this.photos.length > 0) {
-            Text(this.stripOpen ? '▾' : '▸')
-              .fontSize(12)
+          if (this.selectMode) {
+            Text(this.selectedIds.length > 0 ? `已选 ${this.selectedIds.length}` : '选择照片')
+              .fontSize(11)
+              .fontColor(ACCENT)
+            Text('移除')
+              .fontSize(11)
+              .fontColor(this.selectedIds.length > 0 ? '#E0705A' : DIM)
+              .padding({ left: 12, right: 4, top: 2, bottom: 2 })
+              .onClick(() => {
+                if (this.selectedIds.length > 0) {
+                  this.removeSelected();
+                }
+              })
+            Text('完成')
+              .fontSize(11)
+              .fontColor('#C9BDA6')
+              .padding({ left: 8, right: 2, top: 2, bottom: 2 })
+              .onClick(() => {
+                this.selectMode = false;
+                this.selectedIds = [];
+              })
+          } else if (this.photos.length > 0) {
+            // 图库入口：展开/收起下方图栏
+                  Text('图库')
+              .fontSize(11)
               .fontColor(MUTED)
-              .padding({ left: 10, right: 2 })
-              .onClick(() => { this.stripOpen = !this.stripOpen; })
+              .padding({ left: 10, right: 2, top: 2, bottom: 2 })
+              .onClick(() => {
+                    this.galleryOpen = true;
+              })
           }
         }
         .width('100%')
@@ -2762,6 +3051,7 @@ struct Index {
                     .backgroundColor('#14120F')
                     .borderRadius(4)
                     .clip(true)
+                    .overlay(this.selectBadge(p.id), { align: Alignment.TopStart })
                     .border({
                       width: p.id === this.activeId ? 2 : 1,
                       color: p.id === this.activeId ? ACCENT : '#241F19'
@@ -2775,7 +3065,21 @@ struct Index {
                       .width(84)
                       .textAlign(TextAlign.Center)
                   }
-                  .onClick(() => { this.selectPhoto(p.id); })
+                  .onClick(() => {
+                    if (this.selectMode) {
+                      this.toggleSelect(p.id);
+                    } else {
+                      this.selectPhoto(p.id);
+                    }
+                  })
+                  .gesture(LongPressGesture().onAction(() => {
+                    if (!this.selectMode) {
+                      this.selectMode = true;
+                      this.selectedIds = [p.id];
+                    } else {
+                      this.toggleSelect(p.id);
+                    }
+                  }))
                 }
               }, (p: PhotoItem) => `${p.id}|${p.thumb.length > 0 ? 1 : 0}|${p.id === this.activeId ? 1 : 0}`)
             }
@@ -2830,8 +3134,22 @@ struct Index {
               Row() {
                 Text('色温').fontSize(11).fontColor('#A79E8E')
                 Text(' RAW').fontSize(9).fontColor(DIM)
+                // 自动 = 用 RAW 里记录的白平衡。手动调过之后可以点回来。
+                Text(this.wbCustom ? ' 自动' : ' 自动✓')
+                  .fontSize(9)
+                  .fontColor(this.wbCustom ? ACCENT : DIM)
+                  .onClick(() => {
+                    this.wbCustom = false;
+                    this.temperature = 5500;
+                    this.tint = 1.0;
+                    this.schedulePreview();
+                  })
                 Blank()
-                Text(`${this.temperature.toFixed(0)}K`).fontSize(11).fontColor(INK).padding({ bottom: 1 }).border({ width: { bottom: 1 }, color: '#443E33' })
+                Text(this.wbCustom ? `${this.temperature.toFixed(0)}K` : '自动')
+                  .fontSize(this.wbCustom ? 11 : 9)
+                  .fontColor(INK)
+                  .padding({ bottom: 1 })
+                  .border({ width: { bottom: 1 }, color: '#443E33' })
               }
               .width('100%')
               .padding({ left: 12, right: 12 })
@@ -2840,8 +3158,8 @@ struct Index {
               Row() {
                 Text('色调').fontSize(11).fontColor('#A79E8E')
                 Blank()
-                Text(this.tint.toFixed(2))
-                  .fontSize(11).fontColor(INK)
+                Text(this.wbCustom ? this.tint.toFixed(2) : '自动')
+                  .fontSize(this.wbCustom ? 11 : 9)
                   .padding({ bottom: 1 })
                   .border({ width: { bottom: 1 }, color: '#443E33' })
               }
@@ -3061,10 +3379,149 @@ struct Index {
       .padding({ top: px2vp(this.safeTopPx) })
 
       this.exportDialog()
+          // 图库：从底部上浮，盖住主视图，两侧边栏保留但被压暗且不可点。
+          if (this.galleryOpen) {
+            Stack({ alignContent: Alignment.Bottom }) {
+              // 遮罩吃掉所有点击：边栏因此「锁定」
+              Row()
+                .width('100%')
+                .height('100%')
+                .backgroundColor('#B8000000')
+                .onClick(() => {
+                  this.galleryOpen = false;
+                  this.selectMode = false;
+                  this.selectedIds = [];
+                })
+
+              Column() {
+                Row() {
+                  Text(this.selectMode ? `已选 ${this.selectedIds.length}` : '图库')
+                    .fontSize(15)
+                    .fontColor('#EDE6D8')
+                  Text(`${this.photos.length} 张`)
+                    .fontSize(11)
+                    .fontColor('#7A7365')
+                    .padding({ left: 8 })
+                  Blank()
+                  if (this.selectMode) {
+                    Text('移除')
+                      .fontSize(13)
+                      .fontColor(this.selectedIds.length > 0 ? '#E0705A' : '#4A443A')
+                      .padding({ left: 12, right: 12, top: 4, bottom: 4 })
+                      .onClick(() => {
+                        if (this.selectedIds.length > 0) {
+                          this.removeSelected();
+                        }
+                      })
+                    Text('完成')
+                      .fontSize(13)
+                      .fontColor('#C9BDA6')
+                      .padding({ left: 4, right: 4, top: 4, bottom: 4 })
+                      .onClick(() => {
+                        this.selectMode = false;
+                        this.selectedIds = [];
+                      })
+                  } else {
+                    Text('长按选择')
+                      .fontSize(11)
+                      .fontColor('#5E584E')
+                    Text('关闭')
+                      .fontSize(13)
+                      .fontColor('#C9BDA6')
+                      .padding({ left: 14, right: 4, top: 4, bottom: 4 })
+                      .onClick(() => { this.galleryOpen = false; })
+                  }
+                }
+                .width('100%')
+                .height(44)
+                .padding({ left: 22, right: 18 })
+
+                Grid() {
+                  ForEach(this.photos, (p: PhotoItem) => {
+                    GridItem() {
+                      Column({ space: 4 }) {
+                        Stack() {
+                          if (p.thumb.length > 0) {
+                            Image(p.thumb).objectFit(ImageFit.Cover).width('100%').height('100%')
+                          } else {
+                            LoadingProgress().width(18).height(18).color('#5E584E')
+                          }
+                        }
+                        .width('100%')
+                        .aspectRatio(1)
+                        .backgroundColor('#14120F')
+                        .borderRadius(6)
+                        .clip(true)
+                        .border({
+                          width: p.id === this.activeId ? 2 : 1,
+                          color: p.id === this.activeId ? ACCENT : '#241F19'
+                        })
+                        .overlay(this.selectBadge(p.id), { align: Alignment.TopStart })
+
+                        Text(p.name)
+                          .fontSize(10)
+                          .fontColor(p.id === this.activeId ? INK : DIM)
+                          .maxLines(1)
+                          .textOverflow({ overflow: TextOverflow.Ellipsis })
+                          .width('100%')
+                          .textAlign(TextAlign.Center)
+                      }
+                      .onClick(() => {
+                        if (this.selectMode) {
+                          this.toggleSelect(p.id);
+                        } else {
+                          this.selectPhoto(p.id);
+                          this.galleryOpen = false;
+                        }
+                      })
+                      .gesture(LongPressGesture().onAction(() => {
+                        if (!this.selectMode) {
+                          this.selectMode = true;
+                          this.selectedIds = [p.id];
+                        } else {
+                          this.toggleSelect(p.id);
+                        }
+                      }))
+                    }
+                  }, (p: PhotoItem) => `g|${p.id}|${p.thumb.length > 0 ? 1 : 0}|${p.id === this.activeId ? 1 : 0}`)
+                }
+                .columnsTemplate('1fr 1fr 1fr 1fr 1fr 1fr')
+                .columnsGap(14)
+                .rowsGap(16)
+                .width('100%')
+                .layoutWeight(1)
+                .padding({ left: 22, right: 22, top: 4 })
+                .scrollBar(BarState.Auto)
+              }
+              .width('100%')
+              .height(520)
+              .backgroundColor('#141210')
+              .borderRadius({ topLeft: 18, topRight: 18 })
+              .border({ width: { top: 1 }, color: '#2E2A22' })
+              .padding({ bottom: px2vp(this.safeBottomPx) })
+            }
+            .width('100%')
+            .height('100%')
+          }
     }
     .width('100%')
     .height('100%')
     .backgroundColor('#0B0A08')
+    // 半模态：从底部弹起，顶部拖拽条，可拉到全屏。隐私同意必须明确点击，
+    // 所以下拉关闭被拦截（shouldDismiss 里不放行）。
+
+    .bindSheet($$this.privacySheet, this.privacySheetContent(), {
+      width: '100%',
+      height: SheetSize.LARGE,
+      dragBar: true,
+      showClose: false,
+      backgroundColor: '#141210',
+      maskColor: '#D9000000',
+      shouldDismiss: (sheetDismiss: SheetDismiss) => {
+        // 允许下滑收起，但收起后如果还没同意，下次进页面会再弹。
+        sheetDismiss.dismiss();
+      }
+    })
   }
 }
 
@@ -3154,3 +3611,4 @@ struct AboutDialog {
     .alignItems(HorizontalAlign.Start)
   }
 }
+
