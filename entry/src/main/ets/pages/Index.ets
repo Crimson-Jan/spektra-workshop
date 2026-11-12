@@ -2554,17 +2554,17 @@ struct Index {
         Scroll() {
           Column() {
             this.compactRow('胶片曝光', this.ev.toFixed(1))
-            this.paramSlider('ev', this.ev, -3, 3, 0.1, '#161310', '#B4AC9C')
+            SliderRow({ value: $ev, min: -3, max: 3, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); } })
             this.compactRow('印相曝光', this.printEv.toFixed(1))
-            this.paramSlider('printEv', this.printEv, -2, 2, 0.1, '#161310', '#B4AC9C')
+            SliderRow({ value: $printEv, min: -2, max: 2, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); } })
             this.compactRow('对比度', this.postContrast.toFixed(2))
-            this.paramSlider('postContrast', this.postContrast, -1, 1, 0.05, '#141210', '#A8A093')
+            SliderRow({ value: $postContrast, from: '#141210', to: '#A8A093', onChanged: () => { this.schedulePreview(); } })
             this.compactRow('饱和度', this.postSaturation.toFixed(2))
-            this.satSlider(this.postSaturation)
+            SliderRow({ value: $postSaturation, from: '#2B2B29', to: '#4E2F3F', onChanged: () => { this.schedulePreview(); } })
             this.compactRow('白场', this.postWhites.toFixed(2))
-            this.paramSlider('postWhites', this.postWhites, -1, 1, 0.05, '#141210', '#C4BCAC')
+            SliderRow({ value: $postWhites, from: '#141210', to: '#C4BCAC', onChanged: () => { this.schedulePreview(); } })
             this.compactRow('黑场', this.postBlacks.toFixed(2))
-            this.paramSlider('postBlacks', this.postBlacks, -1, 1, 0.05, '#0E0D0B', '#6A6357')
+            SliderRow({ value: $postBlacks, from: '#0E0D0B', to: '#6A6357', onChanged: () => { this.schedulePreview(); } })
           }
           .width('100%')
         }
@@ -3310,7 +3310,7 @@ struct Index {
               }
               .width('100%')
               .padding({ left: 12, right: 12 })
-              this.paramSlider('ev', this.ev, -3, 3, 0.1, '#161310', '#B4AC9C')
+              SliderRow({ value: $ev, min: -3, max: 3, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); } })
 
               Row() {
                 Text('色温').fontSize(11).fontColor('#A79E8E')
@@ -3334,7 +3334,7 @@ struct Index {
               }
               .width('100%')
               .padding({ left: 12, right: 12 })
-              this.paramSlider('temperature', this.temperature, 2500, 10000, 50, '#1B2A3E', '#4A3F26')
+              SliderRow({ value: $temperature, min: 2500, max: 10000, step: 50, from: '#1B2A3E', to: '#4A3F26', onChanged: () => { this.wbCustom = true; this.schedulePreview(); } })
 
               Row() {
                 Text('色调').fontSize(11).fontColor('#A79E8E')
@@ -3346,7 +3346,7 @@ struct Index {
               }
               .width('100%')
               .padding({ left: 12, right: 12 })
-              this.paramSlider('tint', this.tint, 0.5, 2, 0.01, '#2E4232', '#4E2B3D')
+              SliderRow({ value: $tint, min: 0.5, max: 2, step: 0.01, from: '#2E4232', to: '#4E2B3D', onChanged: () => { this.wbCustom = true; this.schedulePreview(); } })
 
               Row() {
                 Text('镜头校正').fontSize(11).fontColor('#A79E8E')
@@ -3378,7 +3378,7 @@ struct Index {
               }
               .width('100%')
               .padding({ left: 12, right: 12 })
-              this.paramSlider('printEv', this.printEv, -2, 2, 0.1, '#161310', '#B4AC9C')
+              SliderRow({ value: $printEv, min: -2, max: 2, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); } })
 
               // 配光: balance the enlarger head for this photograph.
               Row({ space: 8 }) {
