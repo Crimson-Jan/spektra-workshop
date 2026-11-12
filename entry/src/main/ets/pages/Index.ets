@@ -2589,7 +2589,6 @@ struct Index {
       .width('100%').padding({ bottom: 10 })
 
       if (this.compactTab === 3) {
-        Scroll() {
           Column() {
             ParamBlock({ label: '胶片曝光', text: this.ev.toFixed(1), value: $ev, min: -3, max: 3, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); } })
             ParamBlock({ label: '印相曝光', text: this.printEv.toFixed(1), value: $printEv, min: -2, max: 2, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); } })
@@ -2599,9 +2598,7 @@ struct Index {
             ParamBlock({ label: '黑场', text: this.postBlacks.toFixed(2), value: $postBlacks, from: '#0E0D0B', to: '#6A6357', onChanged: () => { this.schedulePreview(); } })
           }
           .width('100%')
-        }
-        .width('100%').layoutWeight(1)
-        .scrollBar(BarState.Auto).scrollBarWidth(3).scrollBarColor('#4C463B')
+          .layoutWeight(1)
       } else if (this.compactTab === 4) {
         Scroll() {
           Column() {
@@ -2656,8 +2653,7 @@ struct Index {
           .width('100%')
           .padding({ right: 18 })
         }
-        .width('100%').layoutWeight(1)
-        .scrollBar(BarState.Auto).scrollBarWidth(3).scrollBarColor('#4C463B')
+.width('100%').layoutWeight(1)
       } else if (this.compactTab === 1) {
         Scroll() {
           Column() {
@@ -2691,8 +2687,7 @@ struct Index {
           .width('100%')
           .padding({ right: 18 })
         }
-        .width('100%').layoutWeight(1)
-        .scrollBar(BarState.Auto).scrollBarWidth(3).scrollBarColor('#4C463B')
+.width('100%').layoutWeight(1)
       } else if (this.compactTab === 2) {
         Scroll() {
           Column() {
@@ -2715,14 +2710,13 @@ struct Index {
           .width('100%')
           .padding({ right: 18 })
         }
-        .width('100%').layoutWeight(1)
-        .scrollBar(BarState.Auto).scrollBarWidth(3).scrollBarColor('#4C463B')
+.width('100%').layoutWeight(1)
       } else {
         Text('这一格的面板正在接入。').fontSize(13).fontColor('#7A7365').width('100%')
         Blank()
       }
     }
-    .width('100%').height(340)
+    .width('100%').height(452)
     .padding({ left: 20, right: 2, top: 10, bottom: 12 })
     .backgroundColor('#141210')
     .border({ width: { top: 1 }, color: '#2E2A22' })
@@ -4308,7 +4302,7 @@ struct ParamBlock {
         step: this.step,
         from: this.from,
         to: this.to,
-        track: '64%',
+        track: '86%',
         onChanged: () => {
           if (this.onChanged !== undefined) {
             this.onChanged();
