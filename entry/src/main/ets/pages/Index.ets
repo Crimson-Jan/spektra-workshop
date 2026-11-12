@@ -2621,10 +2621,10 @@ struct Index {
             .width('100%')
 
             // 灰雾和漏光对非 135 画幅不起作用，但放出来让用户看得到控件
-            if (true) {
-              this.compactEdge('灰雾', 'fog', this.edgeFog)
-              this.compactEdge('漏光', 'leak', this.edgeLeak)
-            }
+            this.compactRow('灰雾', this.edgeFog.toFixed(2))
+            SliderRow({ value: $edgeFog, min: 0, max: 1, step: 0.02, from: '#2A2620', to: '#4A443A', onChanged: () => { this.schedulePreview(); }, track: '78%' })
+            this.compactRow('漏光', this.edgeLeak.toFixed(2))
+            SliderRow({ value: $edgeLeak, min: 0, max: 1, step: 0.02, from: '#1A1713', to: '#6B3A2A', onChanged: () => { this.schedulePreview(); }, track: '78%' })
           }
           .width('100%')
           .padding({ right: 18 })
