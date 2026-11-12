@@ -2716,7 +2716,7 @@ struct Index {
         Blank()
       }
     }
-    .width('100%').height(452)
+    .width('100%').height(414)
     .padding({ left: 20, right: 2, top: 10, bottom: 12 })
     .backgroundColor('#141210')
     .border({ width: { top: 1 }, color: '#2E2A22' })
@@ -4293,7 +4293,7 @@ struct ParamBlock {
           .border({ width: { bottom: 1 }, color: '#443E33' })
       }
       .width('100%')
-      .padding({ top: 4 })
+      .padding({ top: 4, right: 16 })
 
       SliderRow({
         value: $value,
@@ -4302,7 +4302,7 @@ struct ParamBlock {
         step: this.step,
         from: this.from,
         to: this.to,
-        track: '86%',
+        track: '72%',
         onChanged: () => {
           if (this.onChanged !== undefined) {
             this.onChanged();
