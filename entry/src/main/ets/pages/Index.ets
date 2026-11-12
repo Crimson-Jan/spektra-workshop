@@ -52,6 +52,8 @@ const HISTORY_LIMIT: number = 50;
 /** Canvas magnification limit. Beyond 8x the preview is just interpolated
  *  pixels, and the 1280px proxy has nothing left to show. */
 const MAX_ZOOM: number = 8;
+/** 构图时可以缩到比片门小，否则大画幅片子没法摆进小框。 */
+const MIN_ZOOM: number = 0.2;
 
 
 /**
@@ -1055,7 +1057,7 @@ struct Index {
    *  awkward with two hands on a 12" tablet; they are also the only way to drive
    *  this from an automation harness. */
   private zoomBy(factor: number): void {
-    const next = Math.min(MAX_ZOOM, Math.max(1, this.zoom * factor));
+    const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, this.zoom * factor));
     this.zoom = next;
     if (next <= 1.01) {
       this.panX = 0;
@@ -3266,6 +3268,8 @@ struct Index {
             .hitTestBehavior(HitTestMode.Transparent)
             .padding({ right: 16, bottom: 12 })
             .alignItems(VerticalAlign.Bottom)
+            // 竖屏下这两个按钮会压在 tab 上，改由壳子底部的圆形按钮承担
+            .visibility(this.compact ? Visibility.None : Visibility.Visible)
             .hitTestBehavior(HitTestMode.Transparent)
           }
 
@@ -3825,6 +3829,30 @@ struct Index {
 
               if (this.compactTab >= 0) {
                 this.compactPanel()
+              }
+
+              // 构图模式：确认 / 取消，和底部六格之间留出空隙
+              if (this.composeMode) {
+                Row({ space: 28 }) {
+                  Stack() {
+                    Text('✕').fontSize(20).fontColor('#E8E0D0')
+                  }
+                  .width(58).height(58).borderRadius(29)
+                  .backgroundColor('#1C1915')
+                  .border({ width: 1, color: '#3A342B' })
+                  .onClick(() => { this.closeCompose(); })
+
+                  Stack() {
+                    Text('✓').fontSize(20).fontColor('#1A1713')
+                  }
+                  .width(58).height(58).borderRadius(29)
+                  .backgroundColor(ACCENT)
+                  .onClick(() => { this.applyGate(); })
+                }
+                .width('100%')
+                .height(84)
+                .justifyContent(FlexAlign.Center)
+                .margin({ bottom: 6 })
               }
 
               Row() {
