@@ -2589,28 +2589,16 @@ struct Index {
       .width('100%').padding({ bottom: 10 })
 
       if (this.compactTab === 3) {
-        Scroll() {
-          Column() {
-            ParamRow({ label: '胶片曝光', value: this.ev.toFixed(1) })
-            SliderRow({ value: $ev, min: -3, max: 3, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); }, track: '78%' })
-            ParamRow({ label: '印相曝光', value: this.printEv.toFixed(1) })
-            SliderRow({ value: $printEv, min: -2, max: 2, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); }, track: '78%' })
-            ParamRow({ label: '对比度', value: this.postContrast.toFixed(2) })
-            SliderRow({ value: $postContrast, from: '#141210', to: '#A8A093', onChanged: () => { this.schedulePreview(); }, track: '78%' })
-            ParamRow({ label: '饱和度', value: this.postSaturation.toFixed(2) })
-            SliderRow({ value: $postSaturation, from: '#2B2B29', to: '#4E2F3F', onChanged: () => { this.schedulePreview(); }, track: '78%' })
-            ParamRow({ label: '白场', value: this.postWhites.toFixed(2) })
-            SliderRow({ value: $postWhites, from: '#141210', to: '#C4BCAC', onChanged: () => { this.schedulePreview(); }, track: '78%' })
-            ParamRow({ label: '黑场', value: this.postBlacks.toFixed(2) })
-            SliderRow({ value: $postBlacks, from: '#0E0D0B', to: '#6A6357', onChanged: () => { this.schedulePreview(); }, track: '78%' })
-          }
-          .width('100%')
-          // 右边留出和左边一样宽，参数名和数值才对称，滚动条也不压字
-          .padding({ right: 18 })
+        Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {
+          ParamBlock({ label: '胶片曝光', text: this.ev.toFixed(1), value: $ev, min: -3, max: 3, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); } })
+          ParamBlock({ label: '印相曝光', text: this.printEv.toFixed(1), value: $printEv, min: -2, max: 2, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); } })
+          ParamBlock({ label: '对比度', text: this.postContrast.toFixed(2), value: $postContrast, from: '#141210', to: '#A8A093', onChanged: () => { this.schedulePreview(); } })
+          ParamBlock({ label: '饱和度', text: this.postSaturation.toFixed(2), value: $postSaturation, from: '#2B2B29', to: '#4E2F3F', onChanged: () => { this.schedulePreview(); } })
+          ParamBlock({ label: '白场', text: this.postWhites.toFixed(2), value: $postWhites, from: '#141210', to: '#C4BCAC', onChanged: () => { this.schedulePreview(); } })
+          ParamBlock({ label: '黑场', text: this.postBlacks.toFixed(2), value: $postBlacks, from: '#0E0D0B', to: '#6A6357', onChanged: () => { this.schedulePreview(); } })
         }
-        .width('100%').layoutWeight(1)
-        .scrollBar(BarState.Auto).scrollBarWidth(3).scrollBarColor('#4C463B')
-        .padding({ right: 0 })
+        .width('100%')
+        .layoutWeight(1)
       } else if (this.compactTab === 4) {
         Scroll() {
           Column() {
@@ -4275,5 +4263,56 @@ struct ParamRow {
     }
     .width('100%')
     .padding({ top: 8 })
+  }
+}
+
+/**
+ * 一个参数：名字、数值、渐变滑条。
+ *
+ * 竖屏面板曾经用 Scroll 包住这些控件，纵向滚动会把滑条的横向拖动吃掉，
+ * 结果只能点按不能拖。改成两列排版后不再需要滚动，冲突自然消失。
+ */
+@Component
+struct ParamBlock {
+  @Link value: number;
+  @Prop label: string = '';
+  @Prop text: string = '';
+  @Prop min: number = -1;
+  @Prop max: number = 1;
+  @Prop step: number = 0.05;
+  @Prop from: string = '#141210';
+  @Prop to: string = '#A8A093';
+  onChanged?: () => void;
+
+  build() {
+    Column() {
+      Row() {
+        Text(this.label).fontSize(11).fontColor('#A79E8E')
+        Blank()
+        Text(this.text)
+          .fontSize(11)
+          .fontColor(INK)
+          .padding({ bottom: 1 })
+          .border({ width: { bottom: 1 }, color: '#443E33' })
+      }
+      .width('100%')
+      .padding({ top: 4 })
+
+      SliderRow({
+        value: $value,
+        min: this.min,
+        max: this.max,
+        step: this.step,
+        from: this.from,
+        to: this.to,
+        track: '100%',
+        onChanged: () => {
+          if (this.onChanged !== undefined) {
+            this.onChanged();
+          }
+        }
+      })
+    }
+    .width('47%')
   }
 }
