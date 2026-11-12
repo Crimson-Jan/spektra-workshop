@@ -317,6 +317,8 @@ struct Index {
   @State private compactTab: number = -1;
   @State private compactSheet: boolean = false;
   @State private compareHold: boolean = false;
+  /** 顶栏下拉菜单：-1 关闭，0 导入，1 视图。 */
+  @State private compactMenu: number = -1;
   @State private activeId: string = '';
   @State private stripOpen: boolean = true;
 
@@ -2733,6 +2735,22 @@ struct Index {
     .padding({ top: 6 })
   }
 
+  /** 顶栏下拉里的一项。 */
+  @Builder
+  compactMenuItem(label: string, enabled: boolean, action: () => void) {
+    Text(label)
+      .fontSize(13)
+      .fontColor(enabled ? '#D8CFBE' : '#4A443A')
+      .width('100%')
+      .padding({ left: 14, right: 14, top: 9, bottom: 9 })
+      .onClick(() => {
+        if (enabled) {
+          this.compactMenu = -1;
+          action();
+        }
+      })
+  }
+
   @Builder
   compactRow(label: string, value: string) {
     Row() {
@@ -3728,15 +3746,23 @@ struct Index {
           if (this.compact) {
             Column() {
               Row({ space: 4 }) {
-                Text('导入').fontSize(13).fontColor('#C9BDA6')
-                  .padding({ left: 14, right: 10, top: 6, bottom: 6 })
-                  .onClick(() => { this.pickSource(); })
-                Text('视图').fontSize(13).fontColor('#C9BDA6')
-                Text(this.rendering ? '渲染中…' : this.lastRender)
-                  .fontSize(10).fontColor(this.rendering ? '#C9A227' : '#5E584E')
-                  .padding({ left: 6 })
-                  .padding({ left: 8, right: 8, top: 6, bottom: 6 })
-                  .bindMenu(this.viewMenu)
+                Text('导入').fontSize(13).fontColor(this.compactMenu === 0 ? '#1A1713' : '#C9BDA6')
+                  .backgroundColor(this.compactMenu === 0 ? ACCENT : Color.Transparent)
+                  .borderRadius(6)
+                  .padding({ left: 14, right: 12, top: 6, bottom: 6 })
+                  .onClick(() => {
+                    this.compactMenu = this.compactMenu === 0 ? -1 : 0;
+                  })
+                Text('视图').fontSize(13).fontColor(this.compactMenu === 1 ? '#1A1713' : '#C9BDA6')
+                  .backgroundColor(this.compactMenu === 1 ? ACCENT : Color.Transparent)
+                  .borderRadius(6)
+                  .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+                  .onClick(() => {
+                    this.compactMenu = this.compactMenu === 1 ? -1 : 1;
+                  })
+                Text(this.rendering ? '渲染中' : this.lastRender)
+                  .fontSize(9).fontColor(this.rendering ? '#C9A227' : '#4E473C')
+                  .padding({ left: 4 })
                 Blank()
                 Text('↶').fontSize(18)
                   .fontColor(this.undoStack.length > 0 ? '#C9BDA6' : '#3E3A33')
@@ -3758,6 +3784,33 @@ struct Index {
               .padding({ right: 0 })
               .backgroundColor('#0B0A08')
               .alignItems(VerticalAlign.Center)
+
+              // 顶栏下拉：导入与视图各一组，行为和平板上的菜单一致
+              if (this.compactMenu >= 0) {
+                Column() {
+                  if (this.compactMenu === 0) {
+                    this.compactMenuItem('从相册导入', true, () => { this.pickSource(); })
+                    this.compactMenuItem('从文件导入', true, () => { this.pickFile(); })
+                    this.compactMenuItem('支持格式说明', true, () => { this.formatDialog.open(); })
+                  } else {
+                    this.compactMenuItem(this.showWaveform ? '✓ 波形' : '波形', true, () => {
+                      this.showWaveform = !this.showWaveform;
+                      if (this.showWaveform && this.lastPreviewPath.length > 0) {
+                        this.measureWaveform(this.lastPreviewPath);
+                      }
+                    })
+                    this.compactMenuItem('片边构图', this.ready && !this.busy && this.sourceUri.length > 0,
+                      () => { this.openCompose(); })
+                  }
+                }
+                .width(168)
+                .backgroundColor('#1C1915')
+                .borderRadius(10)
+                .border({ width: 1, color: '#332E26' })
+                .padding({ top: 4, bottom: 4 })
+                .alignSelf(ItemAlign.End)
+                .margin({ top: -6, right: 14 })
+              }
 
               Blank()
 
