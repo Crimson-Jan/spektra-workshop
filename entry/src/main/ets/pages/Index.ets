@@ -2591,17 +2591,17 @@ struct Index {
       if (this.compactTab === 3) {
         Scroll() {
           Column() {
-            this.compactRow('胶片曝光', this.ev.toFixed(1))
+            ParamRow({ label: '胶片曝光', value: this.ev.toFixed(1) })
             SliderRow({ value: $ev, min: -3, max: 3, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); }, track: '78%' })
-            this.compactRow('印相曝光', this.printEv.toFixed(1))
+            ParamRow({ label: '印相曝光', value: this.printEv.toFixed(1) })
             SliderRow({ value: $printEv, min: -2, max: 2, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); }, track: '78%' })
-            this.compactRow('对比度', this.postContrast.toFixed(2))
+            ParamRow({ label: '对比度', value: this.postContrast.toFixed(2) })
             SliderRow({ value: $postContrast, from: '#141210', to: '#A8A093', onChanged: () => { this.schedulePreview(); }, track: '78%' })
-            this.compactRow('饱和度', this.postSaturation.toFixed(2))
+            ParamRow({ label: '饱和度', value: this.postSaturation.toFixed(2) })
             SliderRow({ value: $postSaturation, from: '#2B2B29', to: '#4E2F3F', onChanged: () => { this.schedulePreview(); }, track: '78%' })
-            this.compactRow('白场', this.postWhites.toFixed(2))
+            ParamRow({ label: '白场', value: this.postWhites.toFixed(2) })
             SliderRow({ value: $postWhites, from: '#141210', to: '#C4BCAC', onChanged: () => { this.schedulePreview(); }, track: '78%' })
-            this.compactRow('黑场', this.postBlacks.toFixed(2))
+            ParamRow({ label: '黑场', value: this.postBlacks.toFixed(2) })
             SliderRow({ value: $postBlacks, from: '#0E0D0B', to: '#6A6357', onChanged: () => { this.schedulePreview(); }, track: '78%' })
           }
           .width('100%')
@@ -2657,9 +2657,9 @@ struct Index {
             .width('100%')
 
             // 灰雾和漏光对非 135 画幅不起作用，但放出来让用户看得到控件
-            this.compactRow('灰雾', this.edgeFog.toFixed(2))
+            ParamRow({ label: '灰雾', value: this.edgeFog.toFixed(2) })
             SliderRow({ value: $edgeFog, min: 0, max: 1, step: 0.02, from: '#2A2620', to: '#4A443A', onChanged: () => { this.schedulePreview(); }, track: '78%' })
-            this.compactRow('漏光', this.edgeLeak.toFixed(2))
+            ParamRow({ label: '漏光', value: this.edgeLeak.toFixed(2) })
             SliderRow({ value: $edgeLeak, min: 0, max: 1, step: 0.02, from: '#1A1713', to: '#6B3A2A', onChanged: () => { this.schedulePreview(); }, track: '78%' })
           }
           .width('100%')
@@ -4249,5 +4249,31 @@ struct SliderRow {
     }
     .width('100%')
     .height(36)
+  }
+}
+
+/**
+ * 参数名 + 数值。
+ *
+ * 不能写成 @Builder：@Builder 的字符串参数是构建时快照，状态变了不会重绘，
+ * 数字会一直停在 0。@Prop 会随父级状态更新，这也是滑块改用组件的原因。
+ */
+@Component
+struct ParamRow {
+  @Prop label: string = '';
+  @Prop value: string = '';
+
+  build() {
+    Row() {
+      Text(this.label).fontSize(12).fontColor('#A79E8E')
+      Blank()
+      Text(this.value)
+        .fontSize(12)
+        .fontColor(INK)
+        .padding({ bottom: 1 })
+        .border({ width: { bottom: 1 }, color: '#443E33' })
+    }
+    .width('100%')
+    .padding({ top: 8 })
   }
 }
