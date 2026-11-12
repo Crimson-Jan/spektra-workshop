@@ -2567,6 +2567,8 @@ struct Index {
             SliderRow({ value: $postBlacks, from: '#0E0D0B', to: '#6A6357', onChanged: () => { this.schedulePreview(); }, track: '78%' })
           }
           .width('100%')
+          // 右边留出和左边一样宽，参数名和数值才对称，滚动条也不压字
+          .padding({ right: 18 })
         }
         .width('100%').layoutWeight(1)
         .scrollBar(BarState.Auto).scrollBarWidth(3).scrollBarColor('#4C463B')
@@ -2590,6 +2592,8 @@ struct Index {
       Text(label).fontSize(12).fontColor('#A79E8E')
       Blank()
       Text(value).fontSize(12).fontColor(INK)
+        .padding({ bottom: 1 })
+        .border({ width: { bottom: 1 }, color: '#443E33' })
     }
     .width('100%').padding({ top: 8 })
   }
