@@ -2631,6 +2631,65 @@ struct Index {
         }
         .width('100%').layoutWeight(1)
         .scrollBar(BarState.Auto).scrollBarWidth(3).scrollBarColor('#4C463B')
+      } else if (this.compactTab === 1) {
+        Scroll() {
+          Column() {
+            ForEach(this.filmRows, (row: FilmRow) => {
+              if (row.isCaption) {
+                Text(row.label)
+                  .fontSize(9).fontColor('#6E675B').width('100%')
+                  .padding({ left: 2, top: 8, bottom: 3 })
+              } else {
+                Row({ space: 8 }) {
+                  Text(this.films[row.filmIndex].label)
+                    .fontSize(12)
+                    .fontColor(row.filmIndex === this.filmIndex ? '#171410' : '#D8CFBE')
+                    .maxLines(1)
+                    .textOverflow({ overflow: TextOverflow.Ellipsis })
+                    .layoutWeight(1)
+                  this.stockCard(this.films[row.filmIndex])
+                }
+                .width('100%')
+                .padding({ left: 7, right: 8, top: 5, bottom: 5 })
+                .backgroundColor(row.filmIndex === this.filmIndex ? '#F0EBE1' : Color.Transparent)
+                .borderRadius(9)
+                .onClick(() => {
+                  this.filmIndex = row.filmIndex;
+                  this.syncPaperToFilm();
+                  this.schedulePreview();
+                })
+              }
+            }, (row: FilmRow) => row.isCaption ? row.label : this.films[row.filmIndex].name)
+          }
+          .width('100%')
+          .padding({ right: 18 })
+        }
+        .width('100%').layoutWeight(1)
+        .scrollBar(BarState.Auto).scrollBarWidth(3).scrollBarColor('#4C463B')
+      } else if (this.compactTab === 2) {
+        Scroll() {
+          Column() {
+            ForEach(this.papers, (paper: PaperEntry, index: number) => {
+              Text(paper.label)
+                .fontSize(12)
+                .fontColor(index === this.paperIndex ? '#171410' : '#D8CFBE')
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+                .width('100%')
+                .padding({ left: 7, right: 8, top: 6, bottom: 6 })
+                .backgroundColor(index === this.paperIndex ? '#F0EBE1' : Color.Transparent)
+                .borderRadius(9)
+                .onClick(() => {
+                  this.paperIndex = index;
+                  this.schedulePreview();
+                })
+            }, (paper: PaperEntry) => paper.name)
+          }
+          .width('100%')
+          .padding({ right: 18 })
+        }
+        .width('100%').layoutWeight(1)
+        .scrollBar(BarState.Auto).scrollBarWidth(3).scrollBarColor('#4C463B')
       } else {
         Text('这一格的面板正在接入。').fontSize(13).fontColor('#7A7365').width('100%')
         Blank()
