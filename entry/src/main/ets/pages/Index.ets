@@ -3348,11 +3348,11 @@ struct Index {
                 this.zoomStart = this.zoom;
               })
               .onActionUpdate((event: GestureEvent) => {
-                const next = Math.min(MAX_ZOOM, Math.max(1, this.zoomStart * event.scale));
+                const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, this.zoomStart * event.scale));
                 this.zoom = next;
                 if (next <= 1.01) {
-                  this.panX = 0;
-                  this.panY = 0;
+                  this.panX = this.clampPan(this.panX, this.canvasW);
+                  this.panY = this.clampPan(this.panY, this.canvasH);
                 } else {
                   this.panX = this.clampPan(this.panX, this.canvasW);
                   this.panY = this.clampPan(this.panY, this.canvasH);
