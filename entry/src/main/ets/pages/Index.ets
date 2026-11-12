@@ -2038,7 +2038,7 @@ struct Index {
   paramSlider(which: string, value: number, min: number, max: number, step: number, from: string, to: string) {
     Stack() {
       Row()
-        .width(this.track)
+        .width('90%')
         .height(4)
         .borderRadius(2)
         .linearGradient({ angle: 90, colors: [[from, 0.0], [to, 1.0]] })
@@ -2050,7 +2050,7 @@ struct Index {
         .trackColor(Color.Transparent)
         .blockColor('#CFC7B8')
         .blockSize({ width: 10, height: 10 })
-        .width(this.track)
+        .width('90%')
         .onChange((v: number) => { this.setParam(which, v); })
     }
     .width('100%')
@@ -2096,7 +2096,7 @@ struct Index {
   satSlider(value: number) {
     Stack() {
       Row()
-        .width(this.track)
+        .width('90%')
         .height(4)
         .borderRadius(2)
         .linearGradient({
@@ -2109,7 +2109,7 @@ struct Index {
         .trackColor(Color.Transparent)
         .blockColor('#CFC7B8')
         .blockSize({ width: 10, height: 10 })
-        .width(this.track)
+        .width('90%')
         .onChange((v: number) => { this.setParam('postSaturation', v); })
         // 和 paramSlider 一样：撤销后靠换 id 让手柄重新归位
         .id('sat:' + this.sliderEpoch.toString())
