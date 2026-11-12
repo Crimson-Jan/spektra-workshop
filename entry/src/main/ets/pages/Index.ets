@@ -2578,7 +2578,7 @@ struct Index {
       } else if (this.compactTab === 4) {
         Scroll() {
           Column() {
-            Text('画幅').fontSize(10).fontColor(MUTED).width('100%')
+            Text('画幅').fontSize(12).fontColor('#A79E8E').width('100%')
               .padding({ bottom: 6 })
             Flex({ wrap: FlexWrap.Wrap }) {
               ForEach(FORMATS, (f: FrameFormat, i: number) => {
@@ -2601,7 +2601,7 @@ struct Index {
             }
             .width('100%')
 
-            Text('片边').fontSize(10).fontColor(MUTED).width('100%')
+            Text('片边').fontSize(12).fontColor('#A79E8E').width('100%')
               .padding({ top: 8, bottom: 6 })
             Flex({ wrap: FlexWrap.Wrap }) {
               ForEach(BORDERS, (b: BorderChoice, i: number) => {
@@ -2620,8 +2620,8 @@ struct Index {
             }
             .width('100%')
 
-            // 灰雾和漏光只对 135 有意义：它们是卷轴上的东西，不在片门里。
-            if (BORDERS[this.borderIndex].style === '35mm') {
+            // 灰雾和漏光对非 135 画幅不起作用，但放出来让用户看得到控件
+            if (true) {
               this.compactEdge('灰雾', 'fog', this.edgeFog)
               this.compactEdge('漏光', 'leak', this.edgeLeak)
             }
