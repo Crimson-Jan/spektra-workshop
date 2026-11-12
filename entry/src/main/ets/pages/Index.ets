@@ -2570,14 +2570,14 @@ struct Index {
         }
         .width('100%').layoutWeight(1)
         .scrollBar(BarState.Auto).scrollBarWidth(3).scrollBarColor('#4C463B')
-        .padding({ right: 8 })
+        .padding({ right: 0 })
       } else {
         Text('这一格的面板正在接入。').fontSize(13).fontColor('#7A7365').width('100%')
         Blank()
       }
     }
-    .width('100%').height(340)
-    .padding({ left: 22, right: 22, top: 10, bottom: 16 })
+    .width('100%').height(296)
+    .padding({ left: 20, right: 10, top: 10, bottom: 12 })
     .backgroundColor('#141210')
     .border({ width: { top: 1 }, color: '#2E2A22' })
     .borderRadius({ topLeft: 18, topRight: 18 })
@@ -3671,7 +3671,7 @@ struct Index {
                   Blank()
                 Text(this.rendering ? 'rendering' : this.lastRender)
                   .fontSize(10).fontColor(this.rendering ? '#C9A227' : '#5E584E')
-                  .padding({ right: 8 })
+                  .padding({ right: 0 })
                   if (this.selectMode) {
                     Text('移除')
                       .fontSize(13)
