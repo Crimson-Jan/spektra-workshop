@@ -2500,8 +2500,10 @@ struct Index {
       const win = await window.getLastWindow(ctx);
       const rect = win.getWindowProperties().windowRect;
       this.compact = rect.height > rect.width;
+      this.windowW = rect.width;
       win.on('windowSizeChange', (size: window.Size) => {
         this.compact = size.height > size.width;
+      this.windowW = size.width;
       // 转到横屏时收起底部面板，避免面板残留在三栏布局里
       if (!this.compact) {
         this.compactTab = -1;
@@ -2581,12 +2583,12 @@ struct Index {
             Flex({ wrap: FlexWrap.Wrap }) {
               ForEach(FORMATS, (f: FrameFormat, i: number) => {
                 Text(f.label)
-                  .fontSize(10)
+                  .fontSize(10 * this.uiScale())
                   .fontColor(i === this.formatIndex ? '#1A1713' : MUTED)
                   .backgroundColor(i === this.formatIndex ? ACCENT : '#1C1915')
-                  .padding({ left: 7, right: 7, top: 4, bottom: 4 })
-                  .borderRadius(4)
-                  .margin({ right: 4, bottom: 4 })
+                  .padding({ left: 7 * this.uiScale(), right: 7 * this.uiScale(), top: 4 * this.uiScale(), bottom: 4 * this.uiScale() })
+                  .borderRadius(4 * this.uiScale())
+                  .margin({ right: 4 * this.uiScale(), bottom: 4 * this.uiScale() })
                   .onClick(() => {
                     this.formatIndex = i;
                     this.cropRatio = f.ratio;
@@ -2604,12 +2606,12 @@ struct Index {
             Flex({ wrap: FlexWrap.Wrap }) {
               ForEach(BORDERS, (b: BorderChoice, i: number) => {
                 Text(b.label)
-                  .fontSize(10)
+                  .fontSize(10 * this.uiScale())
                   .fontColor(i === this.borderIndex ? '#1A1713' : MUTED)
                   .backgroundColor(i === this.borderIndex ? ACCENT : '#1C1915')
-                  .padding({ left: 7, right: 7, top: 4, bottom: 4 })
-                  .borderRadius(4)
-                  .margin({ right: 4, bottom: 4 })
+                  .padding({ left: 7 * this.uiScale(), right: 7 * this.uiScale(), top: 4 * this.uiScale(), bottom: 4 * this.uiScale() })
+                  .borderRadius(4 * this.uiScale())
+                  .margin({ right: 4 * this.uiScale(), bottom: 4 * this.uiScale() })
                   .onClick(() => {
                     this.borderIndex = i;
                     this.schedulePreview();
@@ -2682,6 +2684,18 @@ struct Index {
     .width('100%').padding({ top: 8 })
   }
 
+
+  /**
+   * 控件缩放系数：窄屏 0.9、普通手机 1.0、平板竖屏 1.3 封顶。
+   * 芯片和面板里的按钮都乘它，避免在平板上显得过小、在手机上过挤。
+   */
+  private uiScale(): number {
+    const vp = px2vp(this.windowW);
+    if (vp <= 0) {
+      return 1;
+    }
+    return Math.max(0.9, Math.min(1.35, vp / 430));
+  }
 
   build() {
     Stack() {
