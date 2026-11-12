@@ -2589,16 +2589,19 @@ struct Index {
       .width('100%').padding({ bottom: 10 })
 
       if (this.compactTab === 3) {
-        Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {
-          ParamBlock({ label: '胶片曝光', text: this.ev.toFixed(1), value: $ev, min: -3, max: 3, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); } })
-          ParamBlock({ label: '印相曝光', text: this.printEv.toFixed(1), value: $printEv, min: -2, max: 2, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); } })
-          ParamBlock({ label: '对比度', text: this.postContrast.toFixed(2), value: $postContrast, from: '#141210', to: '#A8A093', onChanged: () => { this.schedulePreview(); } })
-          ParamBlock({ label: '饱和度', text: this.postSaturation.toFixed(2), value: $postSaturation, from: '#2B2B29', to: '#4E2F3F', onChanged: () => { this.schedulePreview(); } })
-          ParamBlock({ label: '白场', text: this.postWhites.toFixed(2), value: $postWhites, from: '#141210', to: '#C4BCAC', onChanged: () => { this.schedulePreview(); } })
-          ParamBlock({ label: '黑场', text: this.postBlacks.toFixed(2), value: $postBlacks, from: '#0E0D0B', to: '#6A6357', onChanged: () => { this.schedulePreview(); } })
+        Scroll() {
+          Column() {
+            ParamBlock({ label: '胶片曝光', text: this.ev.toFixed(1), value: $ev, min: -3, max: 3, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); } })
+            ParamBlock({ label: '印相曝光', text: this.printEv.toFixed(1), value: $printEv, min: -2, max: 2, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); } })
+            ParamBlock({ label: '对比度', text: this.postContrast.toFixed(2), value: $postContrast, from: '#141210', to: '#A8A093', onChanged: () => { this.schedulePreview(); } })
+            ParamBlock({ label: '饱和度', text: this.postSaturation.toFixed(2), value: $postSaturation, from: '#2B2B29', to: '#4E2F3F', onChanged: () => { this.schedulePreview(); } })
+            ParamBlock({ label: '白场', text: this.postWhites.toFixed(2), value: $postWhites, from: '#141210', to: '#C4BCAC', onChanged: () => { this.schedulePreview(); } })
+            ParamBlock({ label: '黑场', text: this.postBlacks.toFixed(2), value: $postBlacks, from: '#0E0D0B', to: '#6A6357', onChanged: () => { this.schedulePreview(); } })
+          }
+          .width('100%')
         }
-        .width('100%')
-        .layoutWeight(1)
+        .width('100%').layoutWeight(1)
+        .scrollBar(BarState.Auto).scrollBarWidth(3).scrollBarColor('#4C463B')
       } else if (this.compactTab === 4) {
         Scroll() {
           Column() {
@@ -4305,7 +4308,7 @@ struct ParamBlock {
         step: this.step,
         from: this.from,
         to: this.to,
-        track: '100%',
+        track: '64%',
         onChanged: () => {
           if (this.onChanged !== undefined) {
             this.onChanged();
@@ -4313,6 +4316,6 @@ struct ParamBlock {
         }
       })
     }
-    .width('47%')
+    .width('100%')
   }
 }
