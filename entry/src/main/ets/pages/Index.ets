@@ -2573,6 +2573,62 @@ struct Index {
         .width('100%').layoutWeight(1)
         .scrollBar(BarState.Auto).scrollBarWidth(3).scrollBarColor('#4C463B')
         .padding({ right: 0 })
+      } else if (this.compactTab === 4) {
+        Scroll() {
+          Column() {
+            Text('画幅').fontSize(10).fontColor(MUTED).width('100%')
+              .padding({ bottom: 6 })
+            Flex({ wrap: FlexWrap.Wrap }) {
+              ForEach(FORMATS, (f: FrameFormat, i: number) => {
+                Text(f.label)
+                  .fontSize(10)
+                  .fontColor(i === this.formatIndex ? '#1A1713' : MUTED)
+                  .backgroundColor(i === this.formatIndex ? ACCENT : '#1C1915')
+                  .padding({ left: 7, right: 7, top: 4, bottom: 4 })
+                  .borderRadius(4)
+                  .margin({ right: 4, bottom: 4 })
+                  .onClick(() => {
+                    this.formatIndex = i;
+                    this.cropRatio = f.ratio;
+                    if (f.style.length > 0) {
+                      this.borderIndex = this.borderIndexOf(f.style);
+                    }
+                    this.schedulePreview();
+                  })
+              }, (f: FrameFormat) => f.label)
+            }
+            .width('100%')
+
+            Text('片边').fontSize(10).fontColor(MUTED).width('100%')
+              .padding({ top: 8, bottom: 6 })
+            Flex({ wrap: FlexWrap.Wrap }) {
+              ForEach(BORDERS, (b: BorderChoice, i: number) => {
+                Text(b.label)
+                  .fontSize(10)
+                  .fontColor(i === this.borderIndex ? '#1A1713' : MUTED)
+                  .backgroundColor(i === this.borderIndex ? ACCENT : '#1C1915')
+                  .padding({ left: 7, right: 7, top: 4, bottom: 4 })
+                  .borderRadius(4)
+                  .margin({ right: 4, bottom: 4 })
+                  .onClick(() => {
+                    this.borderIndex = i;
+                    this.schedulePreview();
+                  })
+              }, (b: BorderChoice) => b.label)
+            }
+            .width('100%')
+
+            // 灰雾和漏光只对 135 有意义：它们是卷轴上的东西，不在片门里。
+            if (BORDERS[this.borderIndex].style === '35mm') {
+              this.compactEdge('灰雾', 'fog', this.edgeFog)
+              this.compactEdge('漏光', 'leak', this.edgeLeak)
+            }
+          }
+          .width('100%')
+          .padding({ right: 18 })
+        }
+        .width('100%').layoutWeight(1)
+        .scrollBar(BarState.Auto).scrollBarWidth(3).scrollBarColor('#4C463B')
       } else {
         Text('这一格的面板正在接入。').fontSize(13).fontColor('#7A7365').width('100%')
         Blank()
@@ -2584,6 +2640,34 @@ struct Index {
     .border({ width: { top: 1 }, color: '#2E2A22' })
     .borderRadius({ topLeft: 18, topRight: 18 })
     .alignItems(HorizontalAlign.Start)
+  }
+
+  /** 灰雾 / 漏光：和右栏同一种控件（细轨、金色选中、右侧 0-100）。 */
+  @Builder
+  compactEdge(label: string, which: string, value: number) {
+    Row() {
+      Text(label).fontSize(10).fontColor(MUTED).width(34)
+      Slider({
+        value: which === 'fog' ? this.edgeFog : this.edgeLeak,
+        min: 0, max: 1, step: 0.02, style: SliderStyle.OutSet
+      })
+        .selectedColor(ACCENT)
+        .trackColor('#241F19')
+        .blockColor(INK)
+        .layoutWeight(1)
+        .onChange((v: number) => {
+          if (which === 'fog') {
+            this.edgeFog = v;
+          } else {
+            this.edgeLeak = v;
+          }
+          this.schedulePreview();
+        })
+      Text(Math.round(value * 100).toString())
+        .fontSize(9).fontColor(DIM).width(24).textAlign(TextAlign.End)
+    }
+    .width('100%')
+    .padding({ top: 6 })
   }
 
   @Builder
