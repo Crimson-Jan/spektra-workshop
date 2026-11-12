@@ -2530,7 +2530,9 @@ struct Index {
       if (index === 5) {
         this.openGallery();
       } else if (index === 0) {
-        this.compactTab = 0;
+        // 构图没有面板：直接把画布切到片边构图模式
+        this.compactTab = -1;
+        this.openCompose();
       } else {
         this.compactTab = index;
       }
