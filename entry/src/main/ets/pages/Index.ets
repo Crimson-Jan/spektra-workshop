@@ -1039,6 +1039,21 @@ struct Index {
 
   /** Keeps the picture inside the canvas: at zoom z the image is z times wider
    *  than its box, so it can travel (z-1)/2 of the box length in each direction. */
+  /**
+   * 构图模式下的平移范围。
+   *
+   * 普通预览只要不越出画面就行；构图时用户要在片门里挑位置，所以范围是
+   * 「图片显示尺寸减片门尺寸」的一半——图片比片门大多少，就能移动多少。
+   * 这样 1 倍时也能把上半部分挪进 XPan 的窄框，不必靠猛放大再挪。
+   */
+  private clampComposePan(value: number, extent: number, gate: number): number {
+    if (extent <= 0) {
+      return 0;
+    }
+    const limit = Math.max(0, (extent * this.zoom - gate) / 2);
+    return Math.min(limit, Math.max(-limit, value));
+  }
+
   private clampPan(value: number, extent: number): number {
     if (extent <= 0) {
       return 0;
@@ -3338,8 +3353,12 @@ struct Index {
                 if (this.zoom <= 1.01 && !this.composeMode) {
                   return;
                 }
-                this.panX = this.clampPan(this.panStartX + event.offsetX, this.canvasW);
-                this.panY = this.clampPan(this.panStartY + event.offsetY, this.canvasH);
+                this.panX = this.composeMode
+                  ? this.clampComposePan(this.panStartX + event.offsetX, this.canvasW, this.gateRect()[2])
+                  : this.clampPan(this.panStartX + event.offsetX, this.canvasW);
+                this.panY = this.composeMode
+                  ? this.clampComposePan(this.panStartY + event.offsetY, this.canvasH, this.gateRect()[3])
+                  : this.clampPan(this.panStartY + event.offsetY, this.canvasH);
               }),
             // Two fingers zoom. Panning while pinching would fight the gesture,
             // so the offset is only re-clamped here.
@@ -3351,11 +3370,11 @@ struct Index {
                 const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, this.zoomStart * event.scale));
                 this.zoom = next;
                 if (next <= 1.01) {
-                  this.panX = this.clampPan(this.panX, this.canvasW);
-                  this.panY = this.clampPan(this.panY, this.canvasH);
+                  this.panX = (this.composeMode ? this.clampComposePan(this.panX, this.canvasW, this.gateRect()[2]) : this.clampPan(this.panX, this.canvasW));
+                  this.panY = (this.composeMode ? this.clampComposePan(this.panY, this.canvasH, this.gateRect()[3]) : this.clampPan(this.panY, this.canvasH));
                 } else {
-                  this.panX = this.clampPan(this.panX, this.canvasW);
-                  this.panY = this.clampPan(this.panY, this.canvasH);
+                  this.panX = (this.composeMode ? this.clampComposePan(this.panX, this.canvasW, this.gateRect()[2]) : this.clampPan(this.panX, this.canvasW));
+                  this.panY = (this.composeMode ? this.clampComposePan(this.panY, this.canvasH, this.gateRect()[3]) : this.clampPan(this.panY, this.canvasH));
                 }
               })
           )
