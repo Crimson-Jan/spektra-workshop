@@ -2038,7 +2038,7 @@ struct Index {
   paramSlider(which: string, value: number, min: number, max: number, step: number, from: string, to: string) {
     Stack() {
       Row()
-        .width('90%')
+        .width(this.track)
         .height(4)
         .borderRadius(2)
         .linearGradient({ angle: 90, colors: [[from, 0.0], [to, 1.0]] })
@@ -2050,7 +2050,7 @@ struct Index {
         .trackColor(Color.Transparent)
         .blockColor('#CFC7B8')
         .blockSize({ width: 10, height: 10 })
-        .width('90%')
+        .width(this.track)
         .onChange((v: number) => { this.setParam(which, v); })
     }
     .width('100%')
@@ -2096,7 +2096,7 @@ struct Index {
   satSlider(value: number) {
     Stack() {
       Row()
-        .width('90%')
+        .width(this.track)
         .height(4)
         .borderRadius(2)
         .linearGradient({
@@ -2109,7 +2109,7 @@ struct Index {
         .trackColor(Color.Transparent)
         .blockColor('#CFC7B8')
         .blockSize({ width: 10, height: 10 })
-        .width('90%')
+        .width(this.track)
         .onChange((v: number) => { this.setParam('postSaturation', v); })
         // 和 paramSlider 一样：撤销后靠换 id 让手柄重新归位
         .id('sat:' + this.sliderEpoch.toString())
@@ -2554,17 +2554,17 @@ struct Index {
         Scroll() {
           Column() {
             this.compactRow('胶片曝光', this.ev.toFixed(1))
-            SliderRow({ value: $ev, min: -3, max: 3, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); } })
+            SliderRow({ value: $ev, min: -3, max: 3, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); }, track: '78%' })
             this.compactRow('印相曝光', this.printEv.toFixed(1))
-            SliderRow({ value: $printEv, min: -2, max: 2, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); } })
+            SliderRow({ value: $printEv, min: -2, max: 2, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); }, track: '78%' })
             this.compactRow('对比度', this.postContrast.toFixed(2))
-            SliderRow({ value: $postContrast, from: '#141210', to: '#A8A093', onChanged: () => { this.schedulePreview(); } })
+            SliderRow({ value: $postContrast, from: '#141210', to: '#A8A093', onChanged: () => { this.schedulePreview(); }, track: '78%' })
             this.compactRow('饱和度', this.postSaturation.toFixed(2))
-            SliderRow({ value: $postSaturation, from: '#2B2B29', to: '#4E2F3F', onChanged: () => { this.schedulePreview(); } })
+            SliderRow({ value: $postSaturation, from: '#2B2B29', to: '#4E2F3F', onChanged: () => { this.schedulePreview(); }, track: '78%' })
             this.compactRow('白场', this.postWhites.toFixed(2))
-            SliderRow({ value: $postWhites, from: '#141210', to: '#C4BCAC', onChanged: () => { this.schedulePreview(); } })
+            SliderRow({ value: $postWhites, from: '#141210', to: '#C4BCAC', onChanged: () => { this.schedulePreview(); }, track: '78%' })
             this.compactRow('黑场', this.postBlacks.toFixed(2))
-            SliderRow({ value: $postBlacks, from: '#0E0D0B', to: '#6A6357', onChanged: () => { this.schedulePreview(); } })
+            SliderRow({ value: $postBlacks, from: '#0E0D0B', to: '#6A6357', onChanged: () => { this.schedulePreview(); }, track: '78%' })
           }
           .width('100%')
         }
@@ -2576,8 +2576,8 @@ struct Index {
         Blank()
       }
     }
-    .width('100%').height(296)
-    .padding({ left: 20, right: 10, top: 10, bottom: 12 })
+    .width('100%').height(340)
+    .padding({ left: 20, right: 2, top: 10, bottom: 12 })
     .backgroundColor('#141210')
     .border({ width: { top: 1 }, color: '#2E2A22' })
     .borderRadius({ topLeft: 18, topRight: 18 })
@@ -3310,7 +3310,7 @@ struct Index {
               }
               .width('100%')
               .padding({ left: 12, right: 12 })
-              SliderRow({ value: $ev, min: -3, max: 3, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); } })
+              SliderRow({ value: $ev, min: -3, max: 3, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); }, track: '90%' })
 
               Row() {
                 Text('色温').fontSize(11).fontColor('#A79E8E')
@@ -3378,7 +3378,7 @@ struct Index {
               }
               .width('100%')
               .padding({ left: 12, right: 12 })
-              SliderRow({ value: $printEv, min: -2, max: 2, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); } })
+              SliderRow({ value: $printEv, min: -2, max: 2, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); }, track: '90%' })
 
               // 配光: balance the enlarger head for this photograph.
               Row({ space: 8 }) {
@@ -3471,7 +3471,7 @@ struct Index {
               }
               .width('100%')
               .padding({ left: 12, right: 12 })
-              SliderRow({ value: $postContrast, from: '#141210', to: '#A8A093', onChanged: () => { this.schedulePreview(); } })
+              SliderRow({ value: $postContrast, from: '#141210', to: '#A8A093', onChanged: () => { this.schedulePreview(); }, track: '90%' })
 
               Row() {
                 Text('饱和度').fontSize(11).fontColor('#A79E8E')
@@ -3480,7 +3480,7 @@ struct Index {
               }
               .width('100%')
               .padding({ left: 12, right: 12 })
-              SliderRow({ value: $postSaturation, from: '#2B2B29', to: '#4E2F3F', onChanged: () => { this.schedulePreview(); } })
+              SliderRow({ value: $postSaturation, from: '#2B2B29', to: '#4E2F3F', onChanged: () => { this.schedulePreview(); }, track: '90%' })
 
               Row() {
                 Text('白场').fontSize(11).fontColor('#A79E8E')
@@ -3489,7 +3489,7 @@ struct Index {
               }
               .width('100%')
               .padding({ left: 12, right: 12 })
-              SliderRow({ value: $postWhites, from: '#141210', to: '#C4BCAC', onChanged: () => { this.schedulePreview(); } })
+              SliderRow({ value: $postWhites, from: '#141210', to: '#C4BCAC', onChanged: () => { this.schedulePreview(); }, track: '90%' })
 
               Row() {
                 Text('黑场').fontSize(11).fontColor('#A79E8E')
@@ -3498,7 +3498,7 @@ struct Index {
               }
               .width('100%')
               .padding({ left: 12, right: 12 })
-              SliderRow({ value: $postBlacks, from: '#0E0D0B', to: '#6A6357', onChanged: () => { this.schedulePreview(); } })
+              SliderRow({ value: $postBlacks, from: '#0E0D0B', to: '#6A6357', onChanged: () => { this.schedulePreview(); }, track: '90%' })
             }
 
             Divider().color(LINE)
@@ -3969,6 +3969,8 @@ struct SliderRow {
   @Prop step: number = 0.05;
   @Prop from: string = '#141210';
   @Prop to: string = '#A8A093';
+  /** 轨道占宽：竖屏面板窄一点，免得顶到滚动条。 */
+  @Prop track: string = '90%';
   onChanged?: () => void;
 
   build() {
