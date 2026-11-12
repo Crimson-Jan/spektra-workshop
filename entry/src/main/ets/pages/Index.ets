@@ -1895,6 +1895,7 @@ struct Index {
       }
       .width('100%')
       .height('100%')
+            .hitTestBehavior(HitTestMode.Transparent)
       .backgroundColor('#CC000000')
       .justifyContent(FlexAlign.Center)
       .alignItems(HorizontalAlign.Center)
@@ -2227,6 +2228,7 @@ struct Index {
     }
     .width('100%')
     .height('100%')
+            .hitTestBehavior(HitTestMode.Transparent)
   }
 
   /**
@@ -2234,6 +2236,18 @@ struct Index {
    * that is exactly what the border will cut away.
    */
 
+  /** 导入：和平板上同一个菜单，三项都在。 */
+  @Builder
+  importMenu() {
+    Menu() {
+      MenuItem({ content: '从相册导入' })
+        .onClick(() => { this.pickSource(); })
+      MenuItem({ content: '从文件导入' })
+        .onClick(() => { this.pickFile(); })
+      MenuItem({ content: '支持格式说明' })
+        .onClick(() => { this.formatDialog.open(); })
+    }
+  }
   /** 视图: overlays that do not change the render, only what is drawn on top. */
   @Builder
   viewMenu() {
@@ -2342,6 +2356,7 @@ struct Index {
     }
     .width('100%')
     .height('100%')
+            .hitTestBehavior(HitTestMode.Transparent)
     .padding({ left: 40, right: 40, top: 30, bottom: 22 })
     .alignItems(HorizontalAlign.Start)
   }
@@ -3188,6 +3203,7 @@ struct Index {
             }
             .width('100%')
             .height('100%')
+            .hitTestBehavior(HitTestMode.Transparent)
             .backgroundColor('#0A0908')
 
             // Everything the gate will cut away goes dark. Drawn as four bars
@@ -3247,6 +3263,7 @@ struct Index {
             }
             .width('100%')
             .height('100%')
+            .hitTestBehavior(HitTestMode.Transparent)
             .padding({ right: 16, bottom: 12 })
             .alignItems(VerticalAlign.Bottom)
             .hitTestBehavior(HitTestMode.Transparent)
@@ -3275,6 +3292,7 @@ struct Index {
             }
             .width('100%')
             .height('100%')
+            .hitTestBehavior(HitTestMode.Transparent)
             .padding({ top: 12, right: 16 })
             .alignItems(VerticalAlign.Top)
             .hitTestBehavior(HitTestMode.None)
@@ -3740,26 +3758,21 @@ struct Index {
       // way down so their backgrounds reach the screen edge instead of stopping
       // at a band of another colour. Each panel applies its own bottom inset.
       .padding({ top: px2vp(this.safeTopPx) })
+            .hitTestBehavior(HitTestMode.Transparent)
 
       this.exportDialog()
           // —— 手机壳子：顶栏 / 对比 / 底部六格 ——
           if (this.compact) {
             Column() {
               Row({ space: 4 }) {
-                Text('导入').fontSize(13).fontColor(this.compactMenu === 0 ? '#1A1713' : '#C9BDA6')
-                  .backgroundColor(this.compactMenu === 0 ? ACCENT : Color.Transparent)
+                Text('导入').fontSize(13).fontColor('#C9BDA6')
                   .borderRadius(6)
                   .padding({ left: 14, right: 12, top: 6, bottom: 6 })
-                  .onClick(() => {
-                    this.compactMenu = this.compactMenu === 0 ? -1 : 0;
-                  })
-                Text('视图').fontSize(13).fontColor(this.compactMenu === 1 ? '#1A1713' : '#C9BDA6')
-                  .backgroundColor(this.compactMenu === 1 ? ACCENT : Color.Transparent)
+                  .bindMenu(this.importMenu)
+                Text('视图').fontSize(13).fontColor('#C9BDA6')
                   .borderRadius(6)
                   .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-                  .onClick(() => {
-                    this.compactMenu = this.compactMenu === 1 ? -1 : 1;
-                  })
+                  .bindMenu(this.viewMenu)
                 Text(this.rendering ? '渲染中' : this.lastRender)
                   .fontSize(9).fontColor(this.rendering ? '#C9A227' : '#4E473C')
                   .padding({ left: 4 })
@@ -3785,32 +3798,6 @@ struct Index {
               .backgroundColor('#0B0A08')
               .alignItems(VerticalAlign.Center)
 
-              // 顶栏下拉：导入与视图各一组，行为和平板上的菜单一致
-              if (this.compactMenu >= 0) {
-                Column() {
-                  if (this.compactMenu === 0) {
-                    this.compactMenuItem('从相册导入', true, () => { this.pickSource(); })
-                    this.compactMenuItem('从文件导入', true, () => { this.pickFile(); })
-                    this.compactMenuItem('支持格式说明', true, () => { this.formatDialog.open(); })
-                  } else {
-                    this.compactMenuItem(this.showWaveform ? '✓ 波形' : '波形', true, () => {
-                      this.showWaveform = !this.showWaveform;
-                      if (this.showWaveform && this.lastPreviewPath.length > 0) {
-                        this.measureWaveform(this.lastPreviewPath);
-                      }
-                    })
-                    this.compactMenuItem('片边构图', this.ready && !this.busy && this.sourceUri.length > 0,
-                      () => { this.openCompose(); })
-                  }
-                }
-                .width(168)
-                .backgroundColor('#1C1915')
-                .borderRadius(10)
-                .border({ width: 1, color: '#332E26' })
-                .padding({ top: 4, bottom: 4 })
-                .alignSelf(ItemAlign.End)
-                .margin({ top: -6, right: 14 })
-              }
 
               Blank()
 
@@ -3857,6 +3844,8 @@ struct Index {
             .width('100%').height('100%')
             // 状态栏是沉浸式的，壳子整体下沉一个安全区高度，否则按钮被挡住
             .padding({ top: px2vp(this.safeTopPx) })
+            // 壳子只让顶栏、面板和六格接手势，空白处把点击透给画布
+            .hitTestBehavior(HitTestMode.Transparent)
           }
 
           // 图库：从底部上浮，盖住主视图，两侧边栏保留但被压暗且不可点。
@@ -3993,10 +3982,12 @@ struct Index {
             }
             .width('100%')
             .height('100%')
+            .hitTestBehavior(HitTestMode.Transparent)
           }
     }
     .width('100%')
     .height('100%')
+    // (removed stray hit-test)
     .backgroundColor('#0B0A08')
     // 半模态：从底部弹起，顶部拖拽条，可拉到全屏。隐私同意必须明确点击，
     // 所以下拉关闭被拦截（shouldDismiss 里不放行）。
