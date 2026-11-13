@@ -2716,7 +2716,10 @@ struct Index {
         Blank()
       }
     }
-    .width('100%').height(414)
+    .width('100%')
+    // 每个面板按内容定高：胶片/相纸是列表，片边多一组芯片，调整是一行一条
+    .height(this.compactTab === 1 || this.compactTab === 2 ? 300 :
+      this.compactTab === 4 ? 330 : 300)
     .padding({ left: 20, right: 2, top: 10, bottom: 12 })
     .backgroundColor('#141210')
     .border({ width: { top: 1 }, color: '#2E2A22' })
@@ -4282,18 +4285,12 @@ struct ParamBlock {
   onChanged?: () => void;
 
   build() {
-    Column() {
-      Row() {
-        Text(this.label).fontSize(11).fontColor('#A79E8E')
-        Blank()
-        Text(this.text)
-          .fontSize(11)
-          .fontColor(INK)
-          .padding({ bottom: 1 })
-          .border({ width: { bottom: 1 }, color: '#443E33' })
-      }
-      .width('100%')
-      .padding({ top: 4, right: 16 })
+    Row() {
+      Text(this.label)
+        .fontSize(11)
+        .fontColor('#A79E8E')
+        .width(62)
+        .maxLines(1)
 
       SliderRow({
         value: $value,
@@ -4302,14 +4299,25 @@ struct ParamBlock {
         step: this.step,
         from: this.from,
         to: this.to,
-        track: '72%',
+        track: '100%',
         onChanged: () => {
           if (this.onChanged !== undefined) {
             this.onChanged();
           }
         }
       })
+        .layoutWeight(1)
+
+      Text(this.text)
+        .fontSize(11)
+        .fontColor(INK)
+        .width(38)
+        .textAlign(TextAlign.End)
+        .padding({ bottom: 1 })
+        .border({ width: { bottom: 1 }, color: '#443E33' })
     }
     .width('100%')
+    .height(40)
+    .padding({ right: 14 })
   }
 }
