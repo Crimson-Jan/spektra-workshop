@@ -319,6 +319,8 @@ struct Index {
   @State private compactTab: number = -1;
   @State private compactSheet: boolean = false;
   @State private compareHold: boolean = false;
+  /** 竖屏导出面板。 */
+  @State private compactExport: boolean = false;
   /** 顶栏下拉菜单：-1 关闭，0 导入，1 视图。 */
   @State private compactMenu: number = -1;
   @State private activeId: string = '';
@@ -3808,7 +3810,7 @@ struct Index {
                   .margin({ left: 6, right: 18 })
                   .onClick(() => {
                     if (this.canExport()) {
-                      this.exportOpen = true;
+                      this.compactExport = true;
                     }
                   })
               }
@@ -3890,6 +3892,126 @@ struct Index {
             .padding({ top: px2vp(this.safeTopPx) })
             // 壳子只让顶栏、面板和六格接手势，空白处把点击透给画布
             .hitTestBehavior(HitTestMode.Transparent)
+          }
+
+          // 竖屏导出：自下而上，预览在上、设置在中间、确认在底部。
+          if (this.compactExport) {
+            Stack({ alignContent: Alignment.Bottom }) {
+              Row()
+                .width('100%')
+                .height('100%')
+                .backgroundColor('#B8000000')
+                .onClick(() => { this.compactExport = false; })
+
+              Column() {
+                Row() {
+                  Text('导出').fontSize(15).fontColor('#EDE6D8')
+                  Blank()
+                  Text('取消')
+                    .fontSize(13).fontColor('#A79E8E')
+                    .padding({ left: 12, right: 2, top: 4, bottom: 4 })
+                    .onClick(() => { this.compactExport = false; })
+                }
+                .width('100%')
+                .height(42)
+                .padding({ left: 22, right: 18 })
+
+                Stack() {
+                  if (this.previewUri.length > 0) {
+                    Image(this.previewUri).objectFit(ImageFit.Contain).width('100%').height('100%')
+                  } else {
+                    Text('暂无预览').fontSize(12).fontColor('#4A453C')
+                  }
+                }
+                .width('100%')
+                .layoutWeight(1)
+                .backgroundColor('#0A0908')
+                .margin({ left: 18, right: 18 })
+                .borderRadius(8)
+                .clip(true)
+
+                Column({ space: 10 }) {
+                  Row({ space: 6 }) {
+                    Text('文件设置').fontSize(11).fontColor('#A79E8E')
+                    Blank()
+                  }
+                  .width('100%')
+
+                  Row({ space: 6 }) {
+                    ForEach(EXPORT_FORMATS, (f: ExportFormat, i: number) => {
+                      Text(f.label)
+                        .fontSize(11)
+                        .fontColor(i === this.exportFormat ? '#1A1713' : '#A79E8E')
+                        .backgroundColor(i === this.exportFormat ? ACCENT : '#1C1915')
+                        .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+                        .borderRadius(5)
+                        .onClick(() => { this.exportFormat = i; })
+                    }, (f: ExportFormat) => f.label)
+                    Blank()
+                  }
+                  .width('100%')
+
+                  if (EXPORT_FORMATS[this.exportFormat].ext === '.jpg') {
+                    Row() {
+                      Text('品质').fontSize(11).fontColor('#A79E8E').width(62)
+                      Slider({ value: this.exportQuality, min: 40, max: 100, step: 1, style: SliderStyle.OutSet })
+                        .selectedColor(ACCENT)
+                        .trackColor('#241F19')
+                        .blockColor(INK)
+                        .layoutWeight(1)
+                        .onChange((v: number) => { this.exportQuality = v; })
+                      Text(Math.round(this.exportQuality).toString())
+                        .fontSize(11).fontColor(INK).width(38).textAlign(TextAlign.End)
+                    }
+                    .width('100%')
+                  }
+
+                  Row({ space: 6 }) {
+                    ForEach(EXPORT_SIDES, (s: number, i: number) => {
+                      Text(i === 0 ? '原始尺寸' : `${s} px`)
+                        .fontSize(11)
+                        .fontColor(i === this.exportSide ? '#1A1713' : '#A79E8E')
+                        .backgroundColor(i === this.exportSide ? ACCENT : '#1C1915')
+                        .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+                        .borderRadius(5)
+                        .onClick(() => { this.exportSide = i; })
+                    }, (s: number, i: number) => `${i}`)
+                    Blank()
+                  }
+                  .width('100%')
+                }
+                .width('100%')
+                .padding({ left: 18, right: 18, top: 12, bottom: 4 })
+
+                Row({ space: 12 }) {
+                  Button('取消')
+                    .fontSize(13).height(40).layoutWeight(1)
+                    .backgroundColor('#1C1915').fontColor('#C9BDA6')
+                    .type(ButtonType.Normal).borderRadius(8)
+                    .onClick(() => { this.compactExport = false; })
+                  Button('导出')
+                    .fontSize(13).height(40).layoutWeight(1)
+                    .backgroundColor(ACCENT).fontColor('#1A1713')
+                    .type(ButtonType.Normal).borderRadius(8)
+                    .enabled(this.canExport())
+                    .onClick(() => { this.exportFull(); })
+                }
+                .width('100%')
+                .padding({ left: 18, right: 18, top: 8, bottom: 12 + px2vp(this.safeBottomPx) })
+              }
+              .width('100%')
+              .height(520)
+              .backgroundColor('#141210')
+              .borderRadius({ topLeft: 18, topRight: 18 })
+              .border({ width: { top: 1 }, color: '#2E2A22' })
+              .transition(
+                TransitionEffect.translate({ y: '100%' })
+                  .combine(TransitionEffect.OPACITY)
+                  .animation({ duration: 300, curve: Curve.FastOutSlowIn })
+              )
+            }
+            .width('100%')
+            .height('100%')
           }
 
           // 图库：从底部上浮，盖住主视图，两侧边栏保留但被压暗且不可点。
