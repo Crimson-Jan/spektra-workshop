@@ -4,8 +4,8 @@
     // debug signing profile binds to whatever name is used here.
     "bundleName": "com.negs.spektrafilm",
     "vendor": "negs-port",
-    "versionCode": 1000005,
-    "versionName": "1.0.5",
+    "versionCode": 1000100,
+    "versionName": "1.1.0",
     "icon": "$media:layered_image",
     "label": "$string:app_name"
   }

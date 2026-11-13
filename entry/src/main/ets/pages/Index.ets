@@ -2298,7 +2298,7 @@ struct Index {
         .height(1)
         .linearGradient({ angle: 180, colors: [['#66FFFFFF', 0.0], ['#00FFFFFF', 1.0]] })
         // 负边距把这条线拉到面板真正的顶边和左右边缘，而不是内边距以内
-        .margin({ top: -30, left: -40, right: -40, bottom: 24 })
+        .margin({ top: -30, left: this.compact ? -22 : -40, right: this.compact ? -22 : -40, bottom: 24 })
 
       Text('隐私政策')
         .fontSize(20)
@@ -2374,7 +2374,7 @@ struct Index {
     .width('100%')
     .height('100%')
             .hitTestBehavior(HitTestMode.Transparent)
-    .padding({ left: 40, right: 40, top: 30, bottom: 22 })
+    .padding({ left: this.compact ? 22 : 40, right: this.compact ? 22 : 40, top: 30, bottom: 22 })
     .alignItems(HorizontalAlign.Start)
   }
 
