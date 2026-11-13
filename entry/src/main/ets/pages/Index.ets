@@ -2277,7 +2277,7 @@ struct Index {
           }
         })
       MenuItem({ content: '片边构图' })
-        .enabled(this.ready && !this.busy && this.sourceUri.length > 0)
+            .enabled(this.canExport())
         .onClick(() => { this.openCompose(); })
     }
   }
@@ -2645,10 +2645,8 @@ struct Index {
             .width('100%')
 
             // 灰雾和漏光对非 135 画幅不起作用，但放出来让用户看得到控件
-            ParamRow({ label: '灰雾', value: this.edgeFog.toFixed(2) })
-            SliderRow({ value: $edgeFog, min: 0, max: 1, step: 0.02, from: '#2A2620', to: '#4A443A', onChanged: () => { this.schedulePreview(); }, track: '78%' })
-            ParamRow({ label: '漏光', value: this.edgeLeak.toFixed(2) })
-            SliderRow({ value: $edgeLeak, min: 0, max: 1, step: 0.02, from: '#1A1713', to: '#6B3A2A', onChanged: () => { this.schedulePreview(); }, track: '78%' })
+            ParamBlock({ label: '灰雾', text: this.edgeFog.toFixed(2), value: $edgeFog, min: 0, max: 1, step: 0.02, from: '#2A2620', to: '#4A443A', onChanged: () => { this.schedulePreview(); } })
+            ParamBlock({ label: '漏光', text: this.edgeLeak.toFixed(2), value: $edgeLeak, min: 0, max: 1, step: 0.02, from: '#1A1713', to: '#6B3A2A', onChanged: () => { this.schedulePreview(); } })
           }
           .width('100%')
           .padding({ right: 18 })
@@ -2718,8 +2716,9 @@ struct Index {
     }
     .width('100%')
     // 每个面板按内容定高：胶片/相纸是列表，片边多一组芯片，调整是一行一条
-    .height(this.compactTab === 1 || this.compactTab === 2 ? 300 :
-      this.compactTab === 4 ? 330 : 300)
+    .height(this.compactTab === 2 ? 262 :
+      this.compactTab === 1 ? 300 :
+      this.compactTab === 4 ? 292 : 300)
     .padding({ left: 20, right: 2, top: 10, bottom: 12 })
     .backgroundColor('#141210')
     .border({ width: { top: 1 }, color: '#2E2A22' })
@@ -2794,6 +2793,11 @@ struct Index {
       return 1;
     }
     return Math.max(0.9, Math.min(1.35, vp / 430));
+  }
+
+  /** 没有照片、正在渲染、或引擎还没就绪时，导出没有意义。 */
+  private canExport(): boolean {
+    return this.ready && !this.busy && !this.rendering && this.sourceUri.length > 0;
   }
 
   build() {
@@ -3145,7 +3149,7 @@ struct Index {
             .fontColor('#1A1713')
             .type(ButtonType.Normal)
             .borderRadius(6)
-            .enabled(this.ready && !this.busy && this.sourceUri.length > 0)
+            .enabled(this.canExport())
             .onClick(() => { this.exportOpen = true; })
         }
         .width('100%')
@@ -3796,12 +3800,17 @@ struct Index {
                   .fontColor(this.redoStack.length > 0 ? '#C9BDA6' : '#3E3A33')
                   .padding({ left: 8, right: 8, top: 2, bottom: 2 })
                   .onClick(() => { this.redo(); })
-                Text('导出').fontSize(13).fontColor('#1A1713')
-                  .backgroundColor(ACCENT)
+                Text('导出').fontSize(13)
+                  .fontColor(this.canExport() ? '#1A1713' : '#5A5347')
+                  .backgroundColor(this.canExport() ? ACCENT : '#2A2620')
                   .padding({ left: 14, right: 14, top: 7, bottom: 7 })
                   .borderRadius(7)
                   .margin({ left: 6, right: 18 })
-                  .onClick(() => { this.exportOpen = true; })
+                  .onClick(() => {
+                    if (this.canExport()) {
+                      this.exportOpen = true;
+                    }
+                  })
               }
               .width('100%').height(48)
               // 小窗模式下右上角有系统窗口按钮，留出空间
@@ -4029,7 +4038,7 @@ struct Index {
 
     .bindSheet($$this.privacySheet, this.privacySheetContent(), {
       width: '100%',
-      height: SheetSize.LARGE,
+      height: '66%',
       dragBar: true,
       showClose: false,
       backgroundColor: '#141210',
