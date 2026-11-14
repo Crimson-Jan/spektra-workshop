@@ -1327,7 +1327,17 @@ struct Index {
       const input = `${this.cacheDir}/input_${Date.now()}${ext}`;
       const src = fs.openSync(uri, fs.OpenMode.READ_ONLY);
       try {
-        fs.copyFileSync(src.fd, input);
+        // 相册给出的是 media URI，copyFileSync 在部分机型上直接失败；
+        // 改成读出来再写，路径和 fd 两种来源都能走通。
+        const size = fs.statSync(src.fd).size;
+        const buffer = new ArrayBuffer(size);
+        fs.readSync(src.fd, buffer);
+        const target = fs.openSync(input, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+        try {
+          fs.writeSync(target.fd, buffer);
+        } finally {
+          fs.closeSync(target);
+        }
       } finally {
         fs.closeSync(src);
       }
@@ -2563,6 +2573,11 @@ struct Index {
     }
     .layoutWeight(1).height('100%').justifyContent(FlexAlign.Center)
     .onClick(() => {
+      // 没有照片时，除了图库，其余格子都不该有反应
+      if (index !== 5 && this.sourceUri.length === 0) {
+        this.status = '请先导入一张照片';
+        return;
+      }
       if (index === 5) {
         this.openGallery();
       } else if (index === 0) {
@@ -3790,9 +3805,10 @@ struct Index {
                   .borderRadius(6)
                   .padding({ left: 12, right: 12, top: 6, bottom: 6 })
                   .bindMenu(this.viewMenu)
-                Text(this.rendering ? '渲染中' : this.lastRender)
-                  .fontSize(9).fontColor(this.rendering ? '#C9A227' : '#4E473C')
-                  .padding({ left: 4 })
+                Text(this.status.length > 0 ? this.status : (this.rendering ? '渲染中' : ''))
+                  .fontSize(9).fontColor('#8C8578')
+                  .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                  .layoutWeight(1).padding({ left: 4, right: 6 })
                 Blank()
                 Text('↶').fontSize(18)
                   .fontColor(this.undoStack.length > 0 ? '#C9BDA6' : '#3E3A33')
@@ -3834,6 +3850,10 @@ struct Index {
                 .border({ width: 1, color: '#4C463B' })
                 .margin({ right: 16, bottom: 18 })
                 .onTouch((e: TouchEvent) => {
+                  // 没有照片就没有「原片」可看
+                  if (this.sourceUri.length === 0) {
+                    return;
+                  }
                   if (e.type === TouchType.Down) {
                     this.compareHold = true;
                     this.showOriginal = true;
@@ -4041,6 +4061,10 @@ struct Index {
                     .padding({ left: 8 })
                   Blank()
                 Text(this.rendering ? 'rendering' : this.lastRender)
+                Text(this.status.length > 0 ? this.status : (this.rendering ? '渲染中' : ''))
+                  .fontSize(9).fontColor('#8C8578')
+                  .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                  .layoutWeight(1).padding({ left: 4, right: 6 })
                   .fontSize(10).fontColor(this.rendering ? '#C9A227' : '#5E584E')
                   .padding({ right: 0 })
                   if (this.selectMode) {
