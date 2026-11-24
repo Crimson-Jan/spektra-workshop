@@ -24,6 +24,8 @@ use spektrafilm_io::crop::Crop;
 use spektrafilm_io::save::SaveOptions;
 use spektrafilm_math::colorspace::RgbColourspace;
 
+mod preview;
+
 /// Border request as JSON: `{"style":"35mm","width":0.03,"line":0.004,
 /// "color":"#ffffff","line_color":"#000000"}`. Only `style` is required.
 #[derive(serde::Deserialize)]
@@ -80,7 +82,7 @@ impl BorderSpec {
     }
 }
 
-/// Export request as JSON: `{"quality":92,"bit_depth":16}`. The file format is
+/// Output options as JSON: `{"quality":92,"bit_depth":16}`. The file format is
 /// decided by the output path's extension, as everywhere else in this ABI.
 #[derive(serde::Deserialize, Default)]
 struct OutputSpec {
@@ -90,6 +92,9 @@ struct OutputSpec {
     /// Bits per channel for PNG and TIFF: 8 or 16.
     #[serde(default)]
     bit_depth: Option<u8>,
+    /// Enables the working-image cache and the spectral LUTs for previews.
+    #[serde(default)]
+    preview: bool,
 }
 
 /// Success.
@@ -458,39 +463,22 @@ fn render(
     let encoded = params.io.output_cctf_encoding;
     let rotate_cw = params.io.rotate_cw;
 
-    // --- decode -------------------------------------------------------------
-    let loaded = spektrafilm_io::load_image_colour(
-        input,
-        spektrafilm_io::Formats::Any,
-        params.io.raw_white_balance,
-        params.io.lens_correction,
-        &params.io.input_interpretation,
-    )
-    .map_err(|e| format!("decoding {}: {e}", input.display()))?;
-    params.io.apply_input_colour(&loaded.colour);
-    let image = loaded.image;
-
-    // Meter the full source before any resize, matching the export path.
-    let metering = params
-        .camera
-        .auto_exposure
-        .then(|| spektrafilm_core::stages::filming::metering_preview(&image));
-
-    // Image Size resizes before the film so grain forms at working size. The
-    // crop is passed in because a "long side" target describes the *cropped*
-    // photograph, not the source frame.
-    let (image, _size) = spektrafilm_core::image_size::prepare(image, &mut params, crop.as_ref())
-        .map_err(|e| format!("image size: {e}"))?;
+    if output_spec.preview {
+        params.settings.use_enlarger_lut = true;
+        params.settings.use_scanner_lut = true;
+        params.settings.lut_resolution = 33;
+    }
+    let prepared = preview::prepare_input(input, &mut params, crop.as_ref(), output_spec.preview)?;
 
     // --- pipeline -----------------------------------------------------------
     let mut pipeline = Pipeline::new_with_spectral(film, print, params.clone(), data_dir)
         .map_err(|e| format!("building spectral pipeline: {e}"))?;
-    if let Some(metering) = metering {
+    if let Some(metering) = prepared.metering {
         pipeline = pipeline.with_metering_preview(metering);
     }
 
     let backend = spektrafilm_gpu::cpu_backend::CpuBackend;
-    let (mut result, _backend_name) = pipeline.process_with_backend(image, &backend);
+    let (mut result, _backend_name) = pipeline.process_with_backend(prepared.image, &backend);
 
     // --- output -------------------------------------------------------------
     // Crop/border/resize work on the file as written, so clip first; the
@@ -536,7 +524,7 @@ fn render(
         .check(output)
         .map_err(|e| format!("cannot write {}: {e}", output.display()))?;
 
-    let metadata = spektrafilm_io::read_metadata(input);
+    let metadata = if output_spec.preview { None } else { spektrafilm_io::read_metadata(input) };
     spektrafilm_io::save::save_image_with_options(&result, output, metadata.as_ref(), &save_options)
         .map_err(|e| format!("saving {}: {e}", output.display()))?;
 

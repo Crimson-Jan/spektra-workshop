@@ -32,6 +32,8 @@ export interface RenderRequest {
   input: string;
   /** Optional RuntimeParams JSON overriding the engine defaults. */
   params?: string;
+  /** Reuse prepared input and approximate the spectral stages for canvas previews. */
+  preview?: boolean;
   /**
    * Optional film-border request as JSON: `{"style":"35mm"}`. Styles are
    * `35mm` (negative strip with edge print), `film` (120 frame), `white`

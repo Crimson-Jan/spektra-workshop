@@ -367,7 +367,17 @@ napi_value StartRender(napi_env env, napi_value options, bool testPattern) {
         }
         GetOptionalStringProp(env, options, "params", task->params);
         GetOptionalStringProp(env, options, "border", task->border);
-        GetOptionalStringProp(env, options, "exportOptions", task->output_spec);
+        napi_value previewValue = nullptr;
+        bool preview = false;
+        if (napi_get_named_property(env, options, "preview", &previewValue) == napi_ok &&
+            previewValue != nullptr) {
+            napi_get_value_bool(env, previewValue, &preview);
+        }
+        if (preview) {
+            task->output_spec = R"({"preview":true})";
+        } else {
+            GetOptionalStringProp(env, options, "exportOptions", task->output_spec);
+        }
 
         // Optional crop rectangle: {x, y, width, height, angle} as fractions
         // of the frame plus degrees. Absent means the whole frame.

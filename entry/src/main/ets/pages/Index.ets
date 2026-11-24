@@ -15,10 +15,15 @@ import { fileIo as fs, picker } from '@kit.CoreFileKit';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
 import { common } from '@kit.AbilityKit';
 import { util } from '@kit.ArkTS';
-import { router, window } from '@kit.ArkUI';
-import { BusinessError } from '@kit.BasicServicesKit';
+import { LengthMetrics, router, window } from '@kit.ArkUI';
+import { BusinessError, deviceInfo } from '@kit.BasicServicesKit';
 import { image as imageKit } from '@kit.ImageKit';
 import { PrivacyStore } from '../common/PrivacyStore';
+import { AdjustmentSlider } from '../components/AdjustmentSlider';
+import { FILM_CHOICES } from '../components/FilmChoiceInfo';
+import { PAPER_CHOICES } from '../components/PaperChoiceInfo';
+import { PreviewActivity } from '../components/PreviewActivity';
+import { VisualChoiceCard } from '../components/VisualChoiceCard';
 import native, { CropRect, FilmEntry, ImportedPreset, PaperEntry, ProfileCatalog, RenderRequest, RenderResult, SolveRequest, SolveResult } from 'libspektrafilmoh.so';
 
 
@@ -26,6 +31,8 @@ import native, { CropRect, FilmEntry, ImportedPreset, PaperEntry, ProfileCatalog
 /** Preview long side in px. Big enough to judge the look, cheap enough to be
  *  interactive on a tablet CPU. Export bypasses this entirely. */
 const PREVIEW_LONG_SIDE: number = 1280;
+const PREVIEW_ACTIVITY_DELAY_MS: number = 200;
+const PREVIEW_FADE_MS: number = 170;
 
 /** Above this the full-resolution export may hit the memory ceiling on a
  *  phone-class device. Not a hard stop — just an honest warning. */
@@ -55,6 +62,10 @@ const MAX_ZOOM: number = 8;
 /** 构图时可以缩到比片门小，否则大画幅片子没法摆进小框。 */
 const MIN_ZOOM: number = 0.2;
 
+const COMPACT_TOOLBAR_HEIGHT: number = 48;
+const COMPACT_TABS_HEIGHT: number = 58;
+const COMPACT_ADJUST_HEIGHT: number = 306;
+
 
 /**
  * Film borders. `style` is the engine's BorderStyle string; the engine picks
@@ -79,6 +90,7 @@ const BORDERS: BorderChoice[] = [
  */
 interface FrameFormat {
   label: string;
+  ratioLabel: string;
   ratio: number;
   style: string;
   /** The gate name the engine builds, e.g. "6x6"; empty means "fit the crop". */
@@ -130,24 +142,24 @@ interface PhotoItem {
   look: LookState;
 }
 const FORMATS: FrameFormat[] = [
-  { label: '原图', ratio: 0, style: '', frame: '' },
+  { label: '原图', ratioLabel: '原始比例', ratio: 0, style: '', frame: '' },
   // 135 full frame: 36 × 24 mm, landscape.
-  { label: '135', ratio: 3 / 2, style: '35mm', frame: 'full' },
+  { label: '135', ratioLabel: '3:2', ratio: 3 / 2, style: '35mm', frame: 'full' },
   // Half frame is the same 135 turned upright and halved: 18 × 24 mm. Portrait
   // here is what keeps the strip horizontal, so the perforations land above and
   // below the picture instead of beside it.
-  { label: '半格', ratio: 3 / 4, style: '35mm', frame: 'half' },
+  { label: '半格', ratioLabel: '3:4', ratio: 3 / 4, style: '35mm', frame: 'half' },
   // XPan is the same stock through a 65 × 24 mm gate.
-  { label: 'XPan', ratio: 65 / 24, style: '35mm', frame: 'xpan' },
+  { label: 'XPan', ratioLabel: '65:24', ratio: 65 / 24, style: '35mm', frame: 'xpan' },
   // 120 roll film: 61 mm wide, 56 mm of gate, no perforations. The ratios are
   // the gates', not rounded names: 6×7 is 69.5 by 56.
-  { label: '645', ratio: 56 / 41.5, style: '35mm', frame: '645' },
-  { label: '6×6', ratio: 1, style: '35mm', frame: '6x6' },
-  { label: '6×7', ratio: 69.5 / 56, style: '35mm', frame: '6x7' },
-  { label: '6×8', ratio: 76 / 56, style: '35mm', frame: '6x8' },
-  { label: '6×9', ratio: 84 / 56, style: '35mm', frame: '6x9' },
-  { label: '6×12', ratio: 2, style: '35mm', frame: '6x12' },
-  { label: '6×17', ratio: 3, style: '35mm', frame: '6x17' }
+  { label: '645', ratioLabel: '56:41.5', ratio: 56 / 41.5, style: '35mm', frame: '645' },
+  { label: '6×6', ratioLabel: '1:1', ratio: 1, style: '35mm', frame: '6x6' },
+  { label: '6×7', ratioLabel: '69.5:56', ratio: 69.5 / 56, style: '35mm', frame: '6x7' },
+  { label: '6×8', ratioLabel: '76:56', ratio: 76 / 56, style: '35mm', frame: '6x8' },
+  { label: '6×9', ratioLabel: '3:2', ratio: 84 / 56, style: '35mm', frame: '6x9' },
+  { label: '6×12', ratioLabel: '2:1', ratio: 2, style: '35mm', frame: '6x12' },
+  { label: '6×17', ratioLabel: '3:1', ratio: 3, style: '35mm', frame: '6x17' }
 ];
 
 const INK = '#F3EFE7';
@@ -157,76 +169,51 @@ const PANEL = '#12100D';
 const PANEL_2 = '#0E0C0A';
 const ACCENT = '#C9A227';
 const LINE = '#241F19';
+const DEFAULT_RIGHT_RAIL_WIDTH: number = 300;
 
-/**
- * Profile ids are file names (`kodak_portra_400`); the lists show stock names.
- * A plain capitaliser mangles the parts that carry meaning (XTRA, C200, 400H),
- * so those go through a table first.
- */
-/** One line of the film list: either a group caption or a stock. */
-interface FilmRow {
+class SidebarScrollFade implements AttributeModifier<ScrollAttribute> {
+  applyNormalAttribute(scroll: ScrollAttribute): void {
+    if (deviceInfo.sdkApiVersion >= 14) {
+      scroll.fadingEdge(true, { fadingEdgeLength: LengthMetrics.vp(24) });
+    }
+  }
+}
+
+const SIDEBAR_SCROLL_FADE = new SidebarScrollFade();
+
+interface FilmOption {
+  id: string;
+  index: number;
   label: string;
-  /** Index into `films`, or -1 for a caption. */
-  filmIndex: number;
-  isCaption: boolean;
+  detail: string;
+  artPath: string;
 }
 
-/** Reversal stocks, which the list separates from the negatives. */
-function isSlide(film: FilmEntry): boolean {
-  return film.type === 'positive';
+interface FilmGroup {
+  label: string;
+  options: FilmOption[];
 }
 
-function buildFilmRows(films: FilmEntry[]): FilmRow[] {
-  const slides: FilmRow[] = [];
-  const negatives: FilmRow[] = [];
-  for (let i = 0; i < films.length; i++) {
-    const row: FilmRow = { label: '', filmIndex: i, isCaption: false };
-    if (isSlide(films[i])) {
-      slides.push(row);
-    } else {
-      negatives.push(row);
-    }
-  }
-  const rows: FilmRow[] = [];
-  if (slides.length > 0) {
-    rows.push({ label: '正片', filmIndex: -1, isCaption: true });
-    for (const row of slides) {
-      rows.push(row);
-    }
-  }
-  if (negatives.length > 0) {
-    rows.push({ label: '负片', filmIndex: -1, isCaption: true });
-    for (const row of negatives) {
-      rows.push(row);
-    }
-  }
-  return rows;
+function buildFilmGroups(films: FilmEntry[]): FilmGroup[] {
+  const slides: FilmGroup = { label: '正片', options: [] };
+  const negatives: FilmGroup = { label: '负片', options: [] };
+  films.forEach((film: FilmEntry, index: number) => {
+    const choice = FILM_CHOICES.get(film.name);
+    const positive = film.type === 'positive';
+    const channel = film.channel === 'bw' ? '黑白' : '彩色';
+    const filmType = positive ? '正片' : '负片';
+    const group = positive ? slides : negatives;
+    group.options.push({
+      id: film.name,
+      index: index,
+      label: choice?.title ?? film.label,
+      detail: choice?.detail ?? channel + filmType,
+      artPath: choice?.artPath ?? ''
+    });
+  });
+  return [slides, negatives].filter((group: FilmGroup) => group.options.length > 0);
 }
-function badgeKind(film: FilmEntry): string {
-  // Black and white wins over cine: Double-X and Tri-X Reversal are both, and
-  // the B&W card says more about the look than the film's distribution does.
-  if (film.channel === 'bw') {
-    return 'bw';
-  }
-  if (film.use === 'cine') {
-    return 'cine';
-  }
-  if (film.type === 'positive') {
-    if (film.name.indexOf('provia') >= 0) {
-      return 'provia';
-    }
-    if (film.name.indexOf('velvia') >= 0) {
-      return 'velvia';
-    }
-    if (film.name.indexOf('ektachrome') >= 0) {
-      return 'ektachrome';
-    }
-  }
-  if (film.name.indexOf('fujifilm') === 0) {
-    return 'fuji';
-  }
-  return 'kodak';
-}
+
 @Entry
 @Component
 struct Index {
@@ -239,8 +226,7 @@ struct Index {
   @State private busy: boolean = false;
   @State private status: string = '正在解压光谱数据…';
   @State private films: FilmEntry[] = [];
-  /** Films flattened with their 正片 / 负片 captions, for the grouped list. */
-  @State private filmRows: FilmRow[] = [];
+  @State private filmGroups: FilmGroup[] = [];
   @State private papers: PaperEntry[] = [];
   @State private filmIndex: number = 0;
   @State private paperIndex: number = 0;
@@ -277,9 +263,9 @@ struct Index {
   // --- resizable rails --------------------------------------------------
   /** Rail widths in vp. Dragging commits on release; the drag itself only
    *  moves a guide line, so the lists inside never re-measure mid-gesture. */
-  @State private leftW: number = 220;
-  @State private rightW: number = 300;
-  @State private windowW: number = 0;
+  @State private leftW: number = deviceInfo.deviceType === 'tablet' ? DEFAULT_RIGHT_RAIL_WIDTH : 220;
+  @State private rightW: number = DEFAULT_RIGHT_RAIL_WIDTH;
+  @State private windowH: number = 0;
   private dragFrom: number = 0;
   private dragSide: number = 0;
   /** 配光: the solved enlarger filter pack, in CC. */
@@ -297,11 +283,13 @@ struct Index {
   @State private openFrame: boolean = true;
   @State private openBorder: boolean = false;
   @State private openPost: boolean = true;
+  @State private collapsedLeftSections: string[] = [];
   @State private srcAspect: number = 0;
   @State private presetJson: string = '';
   @State private sourceUri: string = '';
   // --- bottom strip ---
   @State private photos: PhotoItem[] = [];
+  private makingThumbnails: Set<string> = new Set();
   /** 图库多选：长按任一张进入选择模式。 */
   @State private selectMode: boolean = false;
   @State private selectedIds: string[] = [];
@@ -311,13 +299,8 @@ struct Index {
   @State private compact: boolean = false;
   /** 渲染状态：给界面一个明确反馈，免得靠猜。 */
   @State private rendering: boolean = false;
-  /** 撤销后让滑块重建，手柄才会跟着状态走。 */
-  @State private sliderEpoch: number = 0;
-  /** 重建滑块时系统会以旧值回调一次 onChange，吞掉它，否则会把刚恢复的值冲掉。 */
-  private suppressEcho: boolean = false;
   @State private lastRender: string = 'idle';
   @State private compactTab: number = -1;
-  @State private compactSheet: boolean = false;
   @State private compareHold: boolean = false;
   /** 竖屏导出面板。 */
   @State private compactExport: boolean = false;
@@ -351,6 +334,11 @@ struct Index {
   /** Set while a snapshot is being applied, so restoring one does not record it. */
   private restoringHistory: boolean = false;
   @State private previewUri: string = '';
+  @State private previewFrames: string[] = [];
+  @State private pendingPreviewPath: string = '';
+  @State private previewActivityVisible: boolean = false;
+  @State private keepOriginalPreview: boolean = true;
+  @State private originalUnavailable: boolean = false;
   /** Waveform overlay: on/off, and the bins it draws from. */
   @State private showWaveform: boolean = false;
   /** Crop rectangle in fractions of the frame, as the engine takes it. */
@@ -396,8 +384,8 @@ struct Index {
   private panStartX: number = 0;
   private panStartY: number = 0;
   /** Canvas size, needed to keep a pan from dragging the picture off screen. */
-  private canvasW: number = 0;
-  private canvasH: number = 0;
+  @State private canvasW: number = 0;
+  @State private canvasH: number = 0;
 
   /** System bar heights in raw pixels, published by EntryAbility. */
   @StorageProp('safeTopPx') private safeTopPx: number = 0;
@@ -413,6 +401,8 @@ struct Index {
   private phAccess: photoAccessHelper.PhotoAccessHelper | null = null;
   private debounce: number = -1;
   private previewQueued: boolean = false;
+  private previewRevision: number = 0;
+  private previewActivityTimer: number = -1;
   private lastPreviewPath: string = '';
 
   aboutToAppear(): void {
@@ -423,10 +413,15 @@ struct Index {
   aboutToDisappear(): void {
     if (this.debounce >= 0) {
       clearTimeout(this.debounce);
+      this.debounce = -1;
     }
     if (this.commitTimer >= 0) {
       clearTimeout(this.commitTimer);
     }
+    this.previewQueued = false;
+    this.previewRevision++;
+    this.discardPendingPreview();
+    this.endPreviewWait();
   }
 
   /**
@@ -462,7 +457,7 @@ struct Index {
       }
       const catalog: ProfileCatalog = JSON.parse(native.getCatalog(this.dataDir)) as ProfileCatalog;
       this.films = catalog.films;
-      this.filmRows = buildFilmRows(this.films);
+      this.filmGroups = buildFilmGroups(this.films);
       // The list is alphabetical, so index 0 is a slide. A negative is the
       // sane default: most photographs are taken on one, and a slide curve
       // turns an ordinary frame blue.
@@ -538,6 +533,17 @@ struct Index {
     if (idx >= 0) {
       this.paperIndex = idx;
     }
+  }
+
+  private selectPaperChoice(index: number): void {
+    const scanFilm = index < 0;
+    if (index === this.paperIndex && scanFilm === this.scanFilm) {
+      return;
+    }
+    this.paperIndex = index;
+    this.scanFilm = scanFilm;
+    this.filtersSolved = false;
+    this.schedulePreview();
   }
 
   // --- parameters -----------------------------------------------------------
@@ -669,7 +675,8 @@ struct Index {
         output: output,
         film: this.currentFilm(),
         paper: this.currentPaper(),
-        params: this.buildParams(1280)
+        params: this.buildParams(PREVIEW_LONG_SIDE),
+        preview: true
       };
       this.rendering = true;
       const result: RenderResult = await native.renderFile(request);
@@ -693,7 +700,7 @@ struct Index {
     } catch (e) {
       this.status = `构图预览失败：${(e as BusinessError).message}`;
     } finally {
-      this.busy = false;
+      this.finishBusy();
     }
   }
 
@@ -842,19 +849,24 @@ struct Index {
     return `{"style":"35mm","format":"${frame}","fog":${fog},"leak":${leak}}`;
   }
 
-  private schedulePreview(): void {
+  private schedulePreview(delayMs: number = 450): void {
     if (this.debounce >= 0) {
       clearTimeout(this.debounce);
     }
     // Every look change funnels through here, so this is the one place that
     // has to arm the history commit.
     this.scheduleCommit();
+    this.previewRevision++;
+    this.discardPendingPreview();
+    if (this.ready && this.sourceUri.length > 0) {
+      this.beginPreviewWait();
+    }
     this.debounce = setTimeout(() => {
       this.debounce = -1;
       if (this.sourceUri.length > 0) {
         this.renderPreview();
       }
-    }, 450);
+    }, delayMs);
   }
 
   /** Deletes a file if it exists. Cleanup must never break a render. */
@@ -871,22 +883,93 @@ struct Index {
     }
   }
 
-  /**
-   * Shows a rendered frame. The path is always fresh (timestamped), so no cache
-   * busting is needed — and a `?t=` suffix would break file resolution.
-   */
-  private showPreview(path: string): void {
-    if (this.lastPreviewPath.length > 0 && this.lastPreviewPath !== path) {
-      this.removeQuietly(this.lastPreviewPath);
+  private beginPreviewWait(): void {
+    if (this.previewActivityTimer >= 0 || this.previewActivityVisible) {
+      return;
+    }
+    this.previewActivityTimer = setTimeout(() => {
+      this.previewActivityTimer = -1;
+      this.previewActivityVisible = true;
+    }, PREVIEW_ACTIVITY_DELAY_MS);
+  }
+
+  private endPreviewWait(): void {
+    if (this.previewActivityTimer >= 0) {
+      clearTimeout(this.previewActivityTimer);
+      this.previewActivityTimer = -1;
+    }
+    this.previewActivityVisible = false;
+  }
+
+  private discardPendingPreview(): void {
+    const path = this.pendingPreviewPath;
+    if (path.length === 0) {
+      return;
+    }
+    this.previewFrames = this.previewFrames.filter((frame: string) => frame !== path);
+    this.pendingPreviewPath = '';
+    this.removeQuietly(path);
+  }
+
+  private resetPreviewForSource(): void {
+    this.previewRevision++;
+    this.endPreviewWait();
+    const oldFrames = this.previewFrames;
+    this.pendingPreviewPath = '';
+    this.lastPreviewPath = '';
+    this.previewUri = '';
+    this.previewFrames = [];
+    this.keepOriginalPreview = true;
+    this.originalUnavailable = false;
+    this.showOriginal = false;
+    this.compareHold = false;
+    this.wave = [];
+    oldFrames.forEach((path: string) => { this.removeQuietly(path); });
+  }
+
+  private finishPreviewFade(path: string): void {
+    const index = this.previewFrames.indexOf(path);
+    if (index < 0) {
+      return;
+    }
+    this.keepOriginalPreview = false;
+    const retired = this.previewFrames.slice(0, index);
+    this.previewFrames = this.previewFrames.slice(index);
+    retired.forEach((old: string) => { this.removeQuietly(old); });
+  }
+
+  private revealPreview(path: string): void {
+    if (path !== this.pendingPreviewPath) {
+      return;
     }
     this.lastPreviewPath = path;
     this.previewUri = `file://${path}`;
-    // The overlay reads the same file the canvas shows, so it always
-    // describes the frame on screen.
+    this.showOriginal = this.compareHold;
+    this.lastRender = 'ok';
+    this.status = '预览已更新';
+    this.endPreviewWait();
+    // Keep the previous frame behind the new one until it is fully opaque.
+    this.getUIContext().animateTo({
+      duration: PREVIEW_FADE_MS,
+      curve: Curve.EaseOut,
+      onFinish: () => { this.finishPreviewFade(path); }
+    }, () => {
+      this.pendingPreviewPath = '';
+    });
     if (this.showWaveform) {
       this.measureWaveform(path);
     }
-    this.showOriginal = false;
+    this.makeThumb(this.activeId, path);
+  }
+
+  private previewLoadFailed(path: string): void {
+    if (path !== this.pendingPreviewPath) {
+      return;
+    }
+    this.discardPendingPreview();
+    this.lastRender = 'failed';
+    this.status = '成片预览加载失败';
+    this.endPreviewWait();
   }
 
   /**
@@ -925,13 +1008,17 @@ struct Index {
           peak = bins[i];
         }
       }
-      this.wave = bins;
-      this.waveMax = peak;
       pixelMap.release();
       source.release();
-      this.drawWaveform();
+      if (path === this.lastPreviewPath) {
+        this.wave = bins;
+        this.waveMax = peak;
+        this.drawWaveform();
+      }
     } catch (e) {
-      this.status = `波形读取失败：${(e as BusinessError).message}`;
+      if (path === this.lastPreviewPath) {
+        this.status = `波形读取失败：${(e as BusinessError).message}`;
+      }
     }
   }
 
@@ -981,19 +1068,35 @@ struct Index {
     this.waveCtx.globalAlpha = 1;
   }
 
+  private finishBusy(): void {
+    this.busy = false;
+    if (this.previewQueued && this.debounce < 0) {
+      this.renderPreview();
+    }
+  }
+
   private async renderPreview(): Promise<void> {
     if (!this.ready) {
       return;
     }
+    if (this.debounce >= 0) {
+      clearTimeout(this.debounce);
+      this.debounce = -1;
+    }
+    if (this.sourceUri.length === 0) {
+      // No photograph yet: the canvas already shows the empty state.
+      this.previewQueued = false;
+      this.endPreviewWait();
+      return;
+    }
+    this.beginPreviewWait();
     if (this.busy) {
       this.previewQueued = true;
       return;
     }
-    if (this.sourceUri.length === 0) {
-      // No photograph yet: the canvas already shows the empty state.
-      this.status = '';
-      return;
-    }
+    this.previewQueued = false;
+    const revision = this.previewRevision;
+    this.discardPendingPreview();
     this.busy = true;
     this.status = '显影中…';
     try {
@@ -1005,7 +1108,8 @@ struct Index {
         output: output,
         film: this.currentFilm(),
         paper: this.currentPaper(),
-        params: this.buildParams(PREVIEW_LONG_SIDE)
+        params: this.buildParams(PREVIEW_LONG_SIDE),
+        preview: true
       };
       if (crop !== null) {
         request.crop = crop;
@@ -1016,25 +1120,26 @@ struct Index {
       }
       this.rendering = true;
       const result: RenderResult = await native.renderFile(request);
-      this.rendering = false;
-      this.lastRender = 'ok';
+      if (revision !== this.previewRevision) {
+        this.removeQuietly(result.output);
+        return;
+      }
       if (crop === null && result.height > 0) {
         this.srcAspect = result.width / result.height;
       }
-      this.showPreview(result.output);
       this.timing = `${result.elapsedMs} ms`;
       this.frameInfo = `${result.width}×${result.height}`;
-      this.status = '预览已更新';
+      this.pendingPreviewPath = result.output;
+      this.previewFrames = this.previewFrames.concat([result.output]);
     } catch (e) {
+      if (revision === this.previewRevision) {
         this.status = this.humanizeError((e as BusinessError).message);
-        this.rendering = false;
         this.lastRender = 'failed';
-    } finally {
-      this.busy = false;
-      if (this.previewQueued) {
-        this.previewQueued = false;
-        this.renderPreview();
+        this.endPreviewWait();
       }
+    } finally {
+      this.rendering = false;
+      this.finishBusy();
     }
   }
 
@@ -1176,9 +1281,8 @@ struct Index {
   /**
    * Adds a freshly imported file to the strip and makes it active.
    *
-   * The thumbnail is a real engine render at 180 px, not a downscale of the
-   * source: the strip has to show the grade, otherwise every thumbnail looks
-   * the same and it is useless for choosing between photographs.
+   * The strip takes its thumbnail from the first preview that reaches the
+   * canvas, so it shows the grade without running the engine a second time.
    */
   private async addPhoto(path: string, name: string): Promise<void> {
     const id = `p${Date.now()}`;
@@ -1193,39 +1297,68 @@ struct Index {
     this.photos = this.photos.concat([
       { id: id, path: path, name: name, thumb: '', look: look } as PhotoItem
     ]);
+    this.resetPreviewForSource();
     this.sourceUri = path;
     this.fileName = name;
     this.srcAspect = 0;
     this.resetView();
     this.renderPreview();
-    this.makeThumb(id, path);
   }
 
   private async makeThumb(id: string, path: string): Promise<void> {
+    if (this.makingThumbnails.has(id) ||
+      !this.photos.some((photo: PhotoItem) => photo.id === id && photo.thumb.length === 0)) {
+      return;
+    }
+    this.makingThumbnails.add(id);
+    const output = `${this.cacheDir}/thumb_${id}.png`;
+    let inputFile: fs.File | undefined;
+    let outputFile: fs.File | undefined;
+    let source: imageKit.ImageSource | undefined;
+    let pixelMap: imageKit.PixelMap | undefined;
+    let packer: imageKit.ImagePacker | undefined;
     try {
-      const output = `${this.cacheDir}/thumb_${id}.png`;
-      const result: RenderResult = await native.renderFile({
-        dataDir: this.dataDir,
-        input: path,
-        output: output,
-        film: this.currentFilm(),
-        paper: this.currentPaper(),
-        params: '{"io":{"photo_long_side_px":180}}'
-      });
-      const uri = `file://${result.output}`;
-      this.photos = this.photos.map((p: PhotoItem) => {
-        if (p.id !== id) {
-          return p;
+      // Hold the source descriptor through decode: a newer preview may retire
+      // this file while the thumbnail is being made.
+      inputFile = fs.openSync(path, fs.OpenMode.READ_ONLY);
+      source = imageKit.createImageSource(inputFile.fd);
+      const info = await source.getImageInfo();
+      const scale = Math.min(1, 180 / Math.max(info.size.width, info.size.height));
+      pixelMap = await source.createPixelMap({
+        desiredSize: {
+          width: Math.max(1, Math.round(info.size.width * scale)),
+          height: Math.max(1, Math.round(info.size.height * scale))
         }
-        return { id: p.id, path: p.path, name: p.name, thumb: uri, look: p.look } as PhotoItem;
       });
+      outputFile = fs.openSync(output, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+      packer = imageKit.createImagePacker();
+      await packer.packToFile(pixelMap, outputFile.fd, { format: 'image/png', quality: 100 });
+
+      const photo = this.photos.find((item: PhotoItem) => item.id === id);
+      if (photo !== undefined) {
+        this.replacePhoto({ id: photo.id, path: photo.path, name: photo.name,
+          thumb: `file://${output}`, look: photo.look });
+      } else {
+        this.removeQuietly(output);
+      }
     } catch (e) {
-      // A missing thumbnail is cosmetic; the entry keeps its placeholder.
+      this.removeQuietly(output);
       console.warn(`spektrafilm: thumbnail failed: ${(e as BusinessError).message}`);
+    } finally {
+      this.makingThumbnails.delete(id);
+      packer?.release();
+      pixelMap?.release();
+      source?.release();
+      if (inputFile !== undefined) {
+        fs.closeSync(inputFile);
+      }
+      if (outputFile !== undefined) {
+        fs.closeSync(outputFile);
+      }
     }
   }
-  private selectPhoto(id: string): void {
-    if (id === this.activeId || this.busy) {
+  private selectPhoto(id: string, replacingRemoved: boolean = false): void {
+    if (id === this.activeId || (this.busy && !replacingRemoved)) {
       return;
     }
     this.saveActiveLook();
@@ -1238,6 +1371,7 @@ struct Index {
     // carrying them across a switch would undo the wrong picture.
     this.undoStack = [];
     this.redoStack = [];
+    this.resetPreviewForSource();
     this.sourceUri = target.path;
     this.fileName = target.name;
     this.srcAspect = 0;
@@ -1274,8 +1408,7 @@ struct Index {
   /**
    * Records the look once the user stops moving things.
    *
-   * Sliders fire continuously; committing every tick would fill the stack with
-   * near-identical states and make a single undo feel like nothing happened.
+   * Closely spaced adjustments share one history entry.
    */
   private scheduleCommit(): void {
     if (this.commitTimer >= 0) {
@@ -1311,8 +1444,6 @@ struct Index {
 
   private restore(target: LookState): void {
     // 撤回和重做都从这里落地，顺序一致才不会只有一边生效
-    this.suppressEcho = true;
-    this.sliderEpoch++;
     this.restoringHistory = true;
     this.applyLook(target);
     this.lastLook = this.captureLook();
@@ -1451,7 +1582,7 @@ struct Index {
     } catch (e) {
       this.status = `配光失败：${(e as BusinessError).message}`;
     } finally {
-      this.busy = false;
+      this.finishBusy();
     }
   }
 
@@ -1500,7 +1631,7 @@ struct Index {
     } catch (e) {
       this.status = `导出失败：${(e as BusinessError).message}`;
     } finally {
-      this.busy = false;
+      this.finishBusy();
     }
   }
   private async exportLut(): Promise<void> {
@@ -1539,7 +1670,7 @@ struct Index {
     } catch (e) {
       this.status = `LUT 导出失败：${(e as BusinessError).message}`;
     } finally {
-      this.busy = false;
+      this.finishBusy();
     }
   }
 
@@ -1590,7 +1721,7 @@ struct Index {
     } catch (e) {
       this.status = `预设解析失败：${(e as BusinessError).message}`;
     } finally {
-      this.busy = false;
+      this.finishBusy();
     }
   }
 
@@ -1634,7 +1765,7 @@ struct Index {
     } catch (e) {
       this.status = `预设导出失败：${(e as BusinessError).message}`;
     } finally {
-      this.busy = false;
+      this.finishBusy();
     }
   }
 
@@ -1678,6 +1809,9 @@ struct Index {
   /** Section header with a chevron; tapping toggles the body. */
   /** Section state is addressed by key so the header builder stays generic. */
   private isOpen(key: string): boolean {
+    if (key.startsWith('left:')) {
+      return !this.collapsedLeftSections.includes(key);
+    }
     if (key === 'cam') {
       return this.openCamera;
     }
@@ -1695,7 +1829,11 @@ struct Index {
   }
 
   private toggleSection(key: string): void {
-    if (key === 'cam') {
+    if (key.startsWith('left:')) {
+      this.collapsedLeftSections = this.isOpen(key)
+        ? this.collapsedLeftSections.concat([key])
+        : this.collapsedLeftSections.filter((section: string) => section !== key);
+    } else if (key === 'cam') {
       this.openCamera = !this.openCamera;
     } else if (key === 'print') {
       this.openPrint = !this.openPrint;
@@ -1710,7 +1848,7 @@ struct Index {
   }
 
   @Builder
-  sectionHeader(title: string, key: string) {
+  sectionHeader(title: string, key: string, height: number = 34) {
     Row() {
       Text(this.isOpen(key) ? '▾' : '▸')
         .fontSize(11)
@@ -1720,7 +1858,7 @@ struct Index {
       Blank()
     }
     .width('100%')
-    .height(34)
+    .height(height)
     .padding({ left: 12, right: 12 })
     .onClick(() => {
       this.toggleSection(key);
@@ -1822,16 +1960,7 @@ struct Index {
               .width('100%')
 
               if (EXPORT_FORMATS[this.exportFormat].ext === '.jpg') {
-                Row() {
-                  Text('品质').fontSize(10).fontColor(MUTED)
-                  Blank()
-                  Text(`${Math.round(this.exportQuality)}`).fontSize(11).fontColor(INK)
-                }
-                .width('100%')
-                Slider({ value: this.exportQuality, min: 70, max: 100, step: 1, style: SliderStyle.OutSet })
-                  .selectedColor(ACCENT).trackColor('#241F19').blockColor(INK)
-                  .width('100%')
-                  .onChange((v: number) => { this.exportQuality = v; })
+                AdjustmentSlider({ label: '品质', value: $exportQuality, min: 70, max: 100, step: 1, decimals: 0 })
               }
             }
             .width('100%')
@@ -1943,68 +2072,145 @@ struct Index {
    * glance without shipping anyone's packaging or artwork.
    */
   @Builder
-  stockCard(film: FilmEntry) {
-    if (badgeKind(film) === 'cine') {
-      Row() {
-        Text('CINE').fontSize(5).fontColor('#20160A').fontWeight(FontWeight.Bold)
-      }
-      .width(23).height(9)
-      .justifyContent(FlexAlign.Center)
-      .backgroundColor('#E8853C')
-      .borderRadius(4)
-    } else if (badgeKind(film) === 'bw') {
-      Row() {
-        Text('B&W').fontSize(5).fontColor('#141414').fontWeight(FontWeight.Bold)
-      }
-      .width(23).height(9)
-      .justifyContent(FlexAlign.Center)
-      .backgroundColor('#F4F4F4')
-      .borderRadius(2)
-    } else if (badgeKind(film) === 'fuji') {
-      // Green, silver, green, with the two separators the carton has.
-      Column() {
-        Row().width('100%').height(2).backgroundColor('#1E7A45')
-        Row().width('100%').height(1).backgroundColor('#0E0C0A')
-        Row().width('100%').height(3).backgroundColor('#C9CECF')
-        Row().width('100%').height(1).backgroundColor('#0E0C0A')
-        Row().width('100%').height(2).backgroundColor('#1E7A45')
-      }
-      .width(23).height(9).borderRadius(1).clip(true)
-    } else if (badgeKind(film) === 'kodak') {
-      // Yellow over purple, one rule between.
-      Column() {
-        Row().width('100%').height(4).backgroundColor('#F5C518')
-        Row().width('100%').height(1).backgroundColor('#0E0C0A')
-        Row().width('100%').height(4).backgroundColor('#5B2D82')
-      }
-      .width(23).height(9).borderRadius(1).clip(true)
-    } else if (badgeKind(film) === 'provia') {
-      Column() {
-        Row().width('100%').height(4).backgroundColor('#1E7A45')
-        Row().width('100%').height(5).backgroundColor('#123A6B')
-      }
-      .width(23).height(9).borderRadius(1).clip(true)
-    } else if (badgeKind(film) === 'velvia') {
-      // Blue with the white panel, over green.
-      Column() {
-        Stack() {
-          Row().width('100%').height('100%').backgroundColor('#1565A8')
-          Row().width(7).height(3).backgroundColor('#F2F2F2').borderRadius(1)
+  filmCards() {
+    Column({ space: 10 }) {
+      ForEach(this.filmGroups, (group: FilmGroup) => {
+        Column({ space: 6 }) {
+          if (this.compact) {
+            Text(group.label)
+              .width('100%')
+              .fontSize(11)
+              .fontColor('#B6A896')
+          } else {
+            this.sectionHeader(group.label, 'left:film:' + group.label, 24)
+          }
+
+          if (this.compact || this.isOpen('left:film:' + group.label)) {
+            GridRow({
+              columns: this.compact ? { xs: 2, sm: 3, md: 4, lg: 5, xl: 5, xxl: 5 } : 3,
+              gutter: this.compact ? 7 : 6,
+              breakpoints: { value: ['282vp', '460vp', '620vp'], reference: BreakpointsReference.ComponentSize }
+            }) {
+              ForEach(group.options, (option: FilmOption) => {
+                GridCol() {
+                  VisualChoiceCard({
+                    label: option.label,
+                    detail: option.detail,
+                    accessibleLabel: this.films[option.index].label + '，' + option.detail,
+                    artPath: option.artPath,
+                    compact: this.compact,
+                    selected: option.index === this.filmIndex,
+                    onSelect: () => {
+                      this.filmIndex = option.index;
+                      this.syncPaperToFilm();
+                      this.schedulePreview();
+                    }
+                  })
+                }
+              }, (option: FilmOption) => option.id)
+            }
+            .width('100%')
+          }
         }
-        .width('100%').height(5)
-        Row().width('100%').height(4).backgroundColor('#2E7D32')
-      }
-      .width(23).height(9).borderRadius(1).clip(true)
-    } else if (badgeKind(film) === 'ektachrome') {
-      Column() {
-        Row().width('100%').height(5).backgroundColor('#1565A8')
-        Row().width('100%').height(4).backgroundColor('#F2F2F2')
-      }
-      .width(23).height(9).borderRadius(1).clip(true)
-    } else {
-      Row().width(23).height(9)
+        .width('100%')
+      }, (group: FilmGroup) => group.label)
     }
+    .width('100%')
   }
+
+  @Builder
+  paperCards() {
+    GridRow({
+      columns: this.compact ? { xs: 2, sm: 3, md: 4, lg: 5, xl: 5, xxl: 5 } : 3,
+      gutter: this.compact ? 7 : 6,
+      breakpoints: { value: ['282vp', '460vp', '620vp'], reference: BreakpointsReference.ComponentSize }
+    }) {
+      GridCol() {
+        VisualChoiceCard({
+          label: '不使用相纸',
+          detail: '直扫胶片',
+          accessibleLabel: '不使用相纸，直接扫描胶片',
+          artPath: 'paper-stocks/no_paper.webp',
+          compact: this.compact,
+          selected: this.scanFilm,
+          onSelect: () => { this.selectPaperChoice(-1); }
+        })
+      }
+      ForEach(this.papers, (paper: PaperEntry, index: number) => {
+        GridCol() {
+          VisualChoiceCard({
+            label: PAPER_CHOICES.get(paper.name)?.title ?? paper.label,
+            detail: PAPER_CHOICES.get(paper.name)?.detail ?? '相纸',
+            accessibleLabel: paper.label,
+            artPath: PAPER_CHOICES.has(paper.name) ? `paper-stocks/${paper.name}.webp` : '',
+            compact: this.compact,
+            selected: !this.scanFilm && index === this.paperIndex,
+            onSelect: () => { this.selectPaperChoice(index); }
+          })
+        }
+      }, (paper: PaperEntry) => paper.name)
+    }
+    .width('100%')
+  }
+
+  @Builder
+  borderCards() {
+    GridRow({
+      columns: { xs: 2, sm: 4, md: 4, lg: 4, xl: 4, xxl: 4 },
+      gutter: 6,
+      breakpoints: { value: ['245vp'], reference: BreakpointsReference.ComponentSize }
+    }) {
+      ForEach(BORDERS, (border: BorderChoice, index: number) => {
+        GridCol() {
+          VisualChoiceCard({
+            label: border.label,
+            accessibleLabel: '片边样式，' + border.label,
+            borderPreview: border.style,
+            compact: this.compact,
+            selected: index === this.borderIndex,
+            onSelect: () => {
+              this.borderIndex = index;
+              this.schedulePreview();
+            }
+          })
+        }
+      }, (border: BorderChoice) => border.label)
+    }
+    .width('100%')
+  }
+
+  @Builder
+  formatCards() {
+    GridRow({
+      columns: { xs: 3, sm: 4, md: 5, lg: 6, xl: 6, xxl: 6 },
+      gutter: 6,
+      breakpoints: { value: ['282vp', '425vp', '560vp'], reference: BreakpointsReference.ComponentSize }
+    }) {
+      ForEach(FORMATS, (format: FrameFormat, index: number) => {
+        GridCol() {
+          VisualChoiceCard({
+            label: format.label,
+            detail: format.ratioLabel,
+            accessibleLabel: format.label + '，' + format.ratioLabel,
+            isFrame: true,
+            ratio: format.ratio,
+            compact: this.compact,
+            selected: index === this.formatIndex,
+            onSelect: () => {
+              this.formatIndex = index;
+              this.cropRatio = format.ratio;
+              if (format.style.length > 0) {
+                this.borderIndex = this.borderIndexOf(format.style);
+              }
+              this.schedulePreview();
+            }
+          })
+        }
+      }, (format: FrameFormat) => format.label)
+    }
+    .width('100%')
+  }
+
   /**
    * A rail's drag handle. The rail follows the finger: clamping is arithmetic on
    * the width itself, so no absolute window coordinate is needed — asking the
@@ -2059,96 +2265,6 @@ struct Index {
     )
   }
 
-
-  /**
-   * A slider whose track shows what the parameter does: dark to light for
-   * exposure, blue to yellow for temperature, grey to muted colour for
-   * saturation. Lightroom's idea, in this app's palette — the ramps are
-   * deliberately dim so the picture stays the brightest thing on screen.
-   */
-  @Builder
-  paramSlider(which: string, value: number, min: number, max: number, step: number, from: string, to: string) {
-    Stack() {
-      Row()
-        .width('90%')
-        .height(4)
-        .borderRadius(2)
-        .linearGradient({ angle: 90, colors: [[from, 0.0], [to, 1.0]] })
-      Slider({ value: value, min: min, max: max, step: step, style: SliderStyle.OutSet })
-        // Slider 的 value 只在构造时取一次；撤销改了状态，手柄却不跟着动。
-        // 用 id 换代：撤销时 ++epoch，Slider 被重建，手柄归位。拖拽期间 epoch 不变。
-        .id(which + ':' + this.sliderEpoch.toString())
-        .selectedColor(Color.Transparent)
-        .trackColor(Color.Transparent)
-        .blockColor('#CFC7B8')
-        .blockSize({ width: 10, height: 10 })
-        .width('90%')
-        .onChange((v: number) => { this.setParam(which, v); })
-    }
-    .width('100%')
-    .height(36)
-  }
-
-  /** Writes a slider back to its own field; the ramps share one call site. */
-  private setParam(which: string, v: number): void {
-    if (this.suppressEcho) {
-      this.suppressEcho = false;
-      return;
-    }
-    if (which === 'ev') {
-      this.ev = v;
-    } else if (which === 'temperature') {
-      this.wbCustom = true;
-      this.temperature = v;
-    } else if (which === 'printEv') {
-      this.printEv = v;
-    } else if (which === 'tint') {
-      // 手动调过白平衡，从此用自定义温度
-      this.wbCustom = true;
-      this.tint = v;
-    } else if (which === 'postContrast') {
-      this.postContrast = v;
-    } else if (which === 'postSaturation') {
-      this.postSaturation = v;
-    } else if (which === 'postWhites') {
-      this.postWhites = v;
-    } else if (which === 'postBlacks') {
-      this.postBlacks = v;
-    }
-    this.schedulePreview();
-  }
-
-  /**
-   * Saturation's track runs grey to colour, the way Lightroom's does: the
-   * ramp itself is the legend, so the panel needs no label explaining which
-   * end is which. The colour stops are mixed down towards the panel grey so
-   * the ramp does not out-shout the photograph.
-   */
-  @Builder
-  satSlider(value: number) {
-    Stack() {
-      Row()
-        .width('90%')
-        .height(4)
-        .borderRadius(2)
-        .linearGradient({
-          angle: 90,
-          colors: [['#2B2B29', 0.0], ['#38432F', 0.3], ['#4A4630', 0.5],
-                   ['#57382F', 0.72], ['#4E2F3F', 1.0]]
-        })
-      Slider({ value: value, min: -1, max: 1, step: 0.05, style: SliderStyle.OutSet })
-        .selectedColor(Color.Transparent)
-        .trackColor(Color.Transparent)
-        .blockColor('#CFC7B8')
-        .blockSize({ width: 10, height: 10 })
-        .width('90%')
-        .onChange((v: number) => { this.setParam('postSaturation', v); })
-        // 和 paramSlider 一样：撤销后靠换 id 让手柄重新归位
-        .id('sat:' + this.sliderEpoch.toString())
-    }
-    .width('100%')
-    .height(36)
-  }
 
   /** The crop rectangle and its handles, drawn over the picture. */
   @Builder
@@ -2482,13 +2598,13 @@ struct Index {
     if (kept.length === 0) {
       this.activeId = '';
       this.sourceUri = '';
-      this.previewUri = '';
+      this.resetPreviewForSource();
       this.stripOpen = false;
       this.status = '已移除全部照片';
       return;
     }
     if (lostActive) {
-      this.selectPhoto(kept[0].id);
+      this.selectPhoto(kept[0].id, true);
     }
     this.status = `已移除 ${doomed.length} 张`;
   }
@@ -2546,19 +2662,37 @@ struct Index {
       const win = await window.getLastWindow(ctx);
       const rect = win.getWindowProperties().windowRect;
       this.compact = rect.height > rect.width;
-      this.windowW = rect.width;
+      this.windowH = rect.height;
       win.on('windowSizeChange', (size: window.Size) => {
         this.compact = size.height > size.width;
-      this.windowW = size.width;
-      // 转到横屏时收起底部面板，避免面板残留在三栏布局里
-      if (!this.compact) {
-        this.compactTab = -1;
-        this.compactSheet = false;
-      }
+        this.windowH = size.height;
+        if (!this.compact) {
+          this.compactTab = -1;
+        }
       });
     } catch (e) {
       this.compact = false;
     }
+  }
+
+  private setCompactTab(index: number): void {
+    animateTo({ duration: 260, curve: Curve.FastOutSlowIn }, () => {
+      this.compactTab = index;
+    });
+  }
+
+  private compactPanelHeight(): number {
+    if (this.compactTab < 0) {
+      return 0;
+    }
+    const preferred = this.compactTab === 1 || this.compactTab === 2 ? 300 :
+      this.compactTab === 4 ? 292 : COMPACT_ADJUST_HEIGHT;
+    if (this.windowH <= 0) {
+      return preferred;
+    }
+    const available = px2vp(this.windowH - this.safeTopPx - this.safeBottomPx) -
+      COMPACT_TOOLBAR_HEIGHT - COMPACT_TABS_HEIGHT;
+    return Math.max(0, Math.min(preferred, available * 0.6));
   }
 
   /** 底部六格之一。 */
@@ -2582,22 +2716,22 @@ struct Index {
         this.openGallery();
       } else if (index === 0) {
         // 构图没有面板：直接把画布切到片边构图模式
-        this.compactTab = -1;
+        this.setCompactTab(-1);
         this.openCompose();
       } else {
-        this.compactTab = index;
+        this.setCompactTab(index);
       }
     })
   }
 
-  /** 底部面板：先把壳子跑通，控件随后搬进来。 */
+  /** 竖屏底部选项面板。 */
   @Builder
   compactPanel() {
     Column() {
       Row() {
         Text('‹').fontSize(24).fontColor('#C9BDA6')
           .padding({ right: 12, top: 0, bottom: 0 })
-          .onClick(() => { this.compactTab = -1; })
+          .onClick(() => { this.setCompactTab(-1); })
         Text(this.compactTab === 1 ? '胶片' : this.compactTab === 2 ? '相纸' :
              this.compactTab === 3 ? '调整' : this.compactTab === 4 ? '片边' : '构图')
           .fontSize(17).fontColor('#EDE6D8')
@@ -2606,169 +2740,98 @@ struct Index {
       .width('100%').padding({ bottom: 10 })
 
       if (this.compactTab === 3) {
+        Scroll() {
           Column() {
-            ParamBlock({ label: '胶片曝光', text: this.ev.toFixed(1), value: $ev, min: -3, max: 3, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); } })
-            ParamBlock({ label: '印相曝光', text: this.printEv.toFixed(1), value: $printEv, min: -2, max: 2, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); } })
-            ParamBlock({ label: '对比度', text: this.postContrast.toFixed(2), value: $postContrast, from: '#141210', to: '#A8A093', onChanged: () => { this.schedulePreview(); } })
-            ParamBlock({ label: '饱和度', text: this.postSaturation.toFixed(2), value: $postSaturation, from: '#2B2B29', to: '#4E2F3F', onChanged: () => { this.schedulePreview(); } })
-            ParamBlock({ label: '白场', text: this.postWhites.toFixed(2), value: $postWhites, from: '#141210', to: '#C4BCAC', onChanged: () => { this.schedulePreview(); } })
-            ParamBlock({ label: '黑场', text: this.postBlacks.toFixed(2), value: $postBlacks, from: '#0E0D0B', to: '#6A6357', onChanged: () => { this.schedulePreview(); } })
+            AdjustmentSlider({
+              label: '胶片曝光', value: $ev, min: -3, max: 3, step: 0.1, decimals: 1, signed: true,
+              inline: true, onCommit: () => { this.schedulePreview(0); }
+            })
+            AdjustmentSlider({
+              label: '印相曝光', value: $printEv, min: -2, max: 2, step: 0.1, decimals: 1, signed: true,
+              inline: true, onCommit: () => { this.schedulePreview(0); }
+            })
+            AdjustmentSlider({
+              label: '对比度', value: $postContrast, inline: true,
+              onCommit: () => { this.schedulePreview(0); }
+            })
+            AdjustmentSlider({
+              label: '饱和度', value: $postSaturation, inline: true,
+              onCommit: () => { this.schedulePreview(0); }
+            })
+            AdjustmentSlider({
+              label: '白场', value: $postWhites, inline: true,
+              onCommit: () => { this.schedulePreview(0); }
+            })
+            AdjustmentSlider({
+              label: '黑场', value: $postBlacks, inline: true,
+              onCommit: () => { this.schedulePreview(0); }
+            })
           }
           .width('100%')
-          .layoutWeight(1)
+          .padding({ right: 14 })
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .enableScrollInteraction(this.compactPanelHeight() < COMPACT_ADJUST_HEIGHT)
       } else if (this.compactTab === 4) {
         Scroll() {
           Column() {
             Text('画幅').fontSize(12).fontColor('#A79E8E').width('100%')
               .padding({ bottom: 6 })
-            Flex({ wrap: FlexWrap.Wrap }) {
-              ForEach(FORMATS, (f: FrameFormat, i: number) => {
-                Text(f.label)
-                  .fontSize(10 * this.uiScale())
-                  .fontColor(i === this.formatIndex ? '#1A1713' : MUTED)
-                  .backgroundColor(i === this.formatIndex ? ACCENT : '#1C1915')
-                  .padding({ left: 7 * this.uiScale(), right: 7 * this.uiScale(), top: 4 * this.uiScale(), bottom: 4 * this.uiScale() })
-                  .borderRadius(4 * this.uiScale())
-                  .margin({ right: 4 * this.uiScale(), bottom: 4 * this.uiScale() })
-                  .onClick(() => {
-                    this.formatIndex = i;
-                    this.cropRatio = f.ratio;
-                    if (f.style.length > 0) {
-                      this.borderIndex = this.borderIndexOf(f.style);
-                    }
-                    this.schedulePreview();
-                  })
-              }, (f: FrameFormat) => f.label)
-            }
-            .width('100%')
+            this.formatCards()
 
-            Text('片边').fontSize(12).fontColor('#A79E8E').width('100%')
+            Text('片边样式').fontSize(12).fontColor('#A79E8E').width('100%')
               .padding({ top: 8, bottom: 6 })
-            Flex({ wrap: FlexWrap.Wrap }) {
-              ForEach(BORDERS, (b: BorderChoice, i: number) => {
-                Text(b.label)
-                  .fontSize(10 * this.uiScale())
-                  .fontColor(i === this.borderIndex ? '#1A1713' : MUTED)
-                  .backgroundColor(i === this.borderIndex ? ACCENT : '#1C1915')
-                  .padding({ left: 7 * this.uiScale(), right: 7 * this.uiScale(), top: 4 * this.uiScale(), bottom: 4 * this.uiScale() })
-                  .borderRadius(4 * this.uiScale())
-                  .margin({ right: 4 * this.uiScale(), bottom: 4 * this.uiScale() })
-                  .onClick(() => {
-                    this.borderIndex = i;
-                    this.schedulePreview();
-                  })
-              }, (b: BorderChoice) => b.label)
-            }
-            .width('100%')
+            this.borderCards()
 
             // 灰雾和漏光对非 135 画幅不起作用，但放出来让用户看得到控件
-            ParamBlock({ label: '灰雾', text: this.edgeFog.toFixed(2), value: $edgeFog, min: 0, max: 1, step: 0.02, from: '#2A2620', to: '#4A443A', onChanged: () => { this.schedulePreview(); } })
-            ParamBlock({ label: '漏光', text: this.edgeLeak.toFixed(2), value: $edgeLeak, min: 0, max: 1, step: 0.02, from: '#1A1713', to: '#6B3A2A', onChanged: () => { this.schedulePreview(); } })
+            AdjustmentSlider({
+              label: '灰雾', value: $edgeFog, min: 0, step: 0.02, decimals: 0, displayScale: 100,
+              inline: true, onCommit: () => { this.schedulePreview(0); }
+            })
+            AdjustmentSlider({
+              label: '漏光', value: $edgeLeak, min: 0, step: 0.02, decimals: 0, displayScale: 100,
+              inline: true, onCommit: () => { this.schedulePreview(0); }
+            })
           }
           .width('100%')
           .padding({ right: 18 })
         }
-.width('100%').layoutWeight(1)
+        .width('100%')
+        .layoutWeight(1)
       } else if (this.compactTab === 1) {
         Scroll() {
           Column() {
-            ForEach(this.filmRows, (row: FilmRow) => {
-              if (row.isCaption) {
-                Text(row.label)
-                  .fontSize(9).fontColor('#6E675B').width('100%')
-                  .padding({ left: 2, top: 8, bottom: 3 })
-              } else {
-                Row({ space: 8 }) {
-                  Text(this.films[row.filmIndex].label)
-                    .fontSize(12)
-                    .fontColor(row.filmIndex === this.filmIndex ? '#171410' : '#D8CFBE')
-                    .maxLines(1)
-                    .textOverflow({ overflow: TextOverflow.Ellipsis })
-                    .layoutWeight(1)
-                  this.stockCard(this.films[row.filmIndex])
-                }
-                .width('100%')
-                .padding({ left: 7, right: 8, top: 5, bottom: 5 })
-                .backgroundColor(row.filmIndex === this.filmIndex ? '#F0EBE1' : Color.Transparent)
-                .borderRadius(9)
-                .onClick(() => {
-                  this.filmIndex = row.filmIndex;
-                  this.syncPaperToFilm();
-                  this.schedulePreview();
-                })
-              }
-            }, (row: FilmRow) => row.isCaption ? row.label : this.films[row.filmIndex].name)
+            this.filmCards()
           }
           .width('100%')
           .padding({ right: 18 })
         }
-.width('100%').layoutWeight(1)
+        .width('100%')
+        .layoutWeight(1)
       } else if (this.compactTab === 2) {
         Scroll() {
           Column() {
-            ForEach(this.papers, (paper: PaperEntry, index: number) => {
-              Text(paper.label)
-                .fontSize(12)
-                .fontColor(index === this.paperIndex ? '#171410' : '#D8CFBE')
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-                .width('100%')
-                .padding({ left: 7, right: 8, top: 6, bottom: 6 })
-                .backgroundColor(index === this.paperIndex ? '#F0EBE1' : Color.Transparent)
-                .borderRadius(9)
-                .onClick(() => {
-                  this.paperIndex = index;
-                  this.schedulePreview();
-                })
-            }, (paper: PaperEntry) => paper.name)
+            this.paperCards()
           }
           .width('100%')
           .padding({ right: 18 })
         }
-.width('100%').layoutWeight(1)
+        .width('100%')
+        .layoutWeight(1)
       } else {
         Text('这一格的面板正在接入。').fontSize(13).fontColor('#7A7365').width('100%')
         Blank()
       }
     }
     .width('100%')
-    // 每个面板按内容定高：胶片/相纸是列表，片边多一组芯片，调整是一行一条
-    .height(this.compactTab === 2 ? 262 :
-      this.compactTab === 1 ? 300 :
-      this.compactTab === 4 ? 292 : 300)
+    .height('100%')
+    .transition(TransitionEffect.OPACITY)
     .padding({ left: 20, right: 2, top: 10, bottom: 12 })
     .backgroundColor('#141210')
     .border({ width: { top: 1 }, color: '#2E2A22' })
     .borderRadius({ topLeft: 18, topRight: 18 })
     .alignItems(HorizontalAlign.Start)
-  }
-
-  /** 灰雾 / 漏光：和右栏同一种控件（细轨、金色选中、右侧 0-100）。 */
-  @Builder
-  compactEdge(label: string, which: string, value: number) {
-    Row() {
-      Text(label).fontSize(10).fontColor(MUTED).width(34)
-      Slider({
-        value: which === 'fog' ? this.edgeFog : this.edgeLeak,
-        min: 0, max: 1, step: 0.02, style: SliderStyle.OutSet
-      })
-        .selectedColor(ACCENT)
-        .trackColor('#241F19')
-        .blockColor(INK)
-        .layoutWeight(1)
-        .onChange((v: number) => {
-          if (which === 'fog') {
-            this.edgeFog = v;
-          } else {
-            this.edgeLeak = v;
-          }
-          this.schedulePreview();
-        })
-      Text(Math.round(value * 100).toString())
-        .fontSize(9).fontColor(DIM).width(24).textAlign(TextAlign.End)
-    }
-    .width('100%')
-    .padding({ top: 6 })
   }
 
   /** 顶栏下拉里的一项。 */
@@ -2800,21 +2863,424 @@ struct Index {
   }
 
 
-  /**
-   * 控件缩放系数：窄屏 0.9、普通手机 1.0、平板竖屏 1.3 封顶。
-   * 芯片和面板里的按钮都乘它，避免在平板上显得过小、在手机上过挤。
-   */
-  private uiScale(): number {
-    const vp = px2vp(this.windowW);
-    if (vp <= 0) {
-      return 1;
-    }
-    return Math.max(0.9, Math.min(1.35, vp / 430));
-  }
-
   /** 没有照片、正在渲染、或引擎还没就绪时，导出没有意义。 */
   private canExport(): boolean {
-    return this.ready && !this.busy && !this.rendering && this.sourceUri.length > 0;
+    return this.ready && !this.busy && !this.rendering && this.pendingPreviewPath.length === 0 &&
+      this.sourceUri.length > 0;
+  }
+
+  @Builder
+  compactToolbar() {
+    Row({ space: 4 }) {
+      Text('导入').fontSize(13).fontColor('#C9BDA6')
+        .borderRadius(6)
+        .padding({ left: 14, right: 12, top: 6, bottom: 6 })
+        .bindMenu(this.importMenu)
+      Text('视图').fontSize(13).fontColor('#C9BDA6')
+        .borderRadius(6)
+        .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+        .bindMenu(this.viewMenu)
+      Text(this.status.length > 0 ? this.status : (this.rendering ? '渲染中' : ''))
+        .fontSize(9).fontColor('#8C8578')
+        .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+        .layoutWeight(1).padding({ left: 4, right: 6 })
+      Blank()
+      Text('↶').fontSize(18)
+        .fontColor(this.undoStack.length > 0 ? '#C9BDA6' : '#3E3A33')
+        .padding({ left: 10, right: 10, top: 2, bottom: 2 })
+        .onClick(() => { this.undo(); })
+      Text('↷').fontSize(18)
+        .fontColor(this.redoStack.length > 0 ? '#C9BDA6' : '#3E3A33')
+        .padding({ left: 8, right: 8, top: 2, bottom: 2 })
+        .onClick(() => { this.redo(); })
+      Text('导出').fontSize(13)
+        .fontColor(this.canExport() ? '#1A1713' : '#5A5347')
+        .backgroundColor(this.canExport() ? ACCENT : '#2A2620')
+        .padding({ left: 14, right: 14, top: 7, bottom: 7 })
+        .borderRadius(7)
+        .margin({ left: 6, right: 18 })
+        .onClick(() => {
+          if (this.canExport()) {
+            this.compactExport = true;
+          }
+        })
+    }
+    .width('100%').height(COMPACT_TOOLBAR_HEIGHT)
+    // 小窗模式下右上角有系统窗口按钮，留出空间
+    .padding({ right: 0 })
+    .backgroundColor('#0B0A08')
+    .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
+  compactCanvasActions() {
+    Column() {
+      Row() {
+        Blank()
+        Stack() {
+          Text('对比').fontSize(11)
+            .fontColor(this.compareHold ? '#1A1713' : '#E8E0D0')
+        }
+        .width(54).height(54).borderRadius(27)
+        .backgroundColor(this.compareHold ? ACCENT : '#8C1C1915')
+        .border({ width: 1, color: '#4C463B' })
+        .margin({ right: 16, bottom: 18 })
+        .onTouch((e: TouchEvent) => {
+          // 没有照片就没有「原片」可看
+          if (this.sourceUri.length === 0) {
+            return;
+          }
+          if (e.type === TouchType.Down) {
+            this.compareHold = true;
+            this.showOriginal = true;
+          } else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
+            this.compareHold = false;
+            this.showOriginal = false;
+          }
+        })
+      }
+      .width('100%')
+      .hitTestBehavior(HitTestMode.Transparent)
+
+      if (this.composeMode) {
+        Row({ space: 28 }) {
+          Stack() {
+            Text('✕').fontSize(20).fontColor('#E8E0D0')
+          }
+          .width(58).height(58).borderRadius(29)
+          .backgroundColor('#1C1915')
+          .border({ width: 1, color: '#3A342B' })
+          .onClick(() => { this.closeCompose(); })
+
+          Stack() {
+            Text('✓').fontSize(20).fontColor('#1A1713')
+          }
+          .width(58).height(58).borderRadius(29)
+          .backgroundColor(ACCENT)
+          .onClick(() => { this.applyGate(); })
+        }
+        .width('100%')
+        .height(84)
+        .justifyContent(FlexAlign.Center)
+        .margin({ bottom: 6 })
+        .hitTestBehavior(HitTestMode.Transparent)
+      }
+    }
+    .width('100%')
+    .hitTestBehavior(HitTestMode.Transparent)
+  }
+
+  @Builder
+  compactControls() {
+    Column() {
+      // Reserve room for the panel in the same column as the preview.
+      Stack({ alignContent: Alignment.Bottom }) {
+        if (this.compactTab >= 0) {
+          this.compactPanel()
+        }
+      }
+      .width('100%')
+      .height(this.compactPanelHeight())
+      .renderFit(RenderFit.BOTTOM)
+      .clip(true)
+
+      Row() {
+        this.compactTabItem('构图', 0)
+        this.compactTabItem('胶片', 1)
+        this.compactTabItem('相纸', 2)
+        this.compactTabItem('调整', 3)
+        this.compactTabItem('片边', 4)
+        this.compactTabItem('图库', 5)
+      }
+      .width('100%').height(COMPACT_TABS_HEIGHT)
+      .backgroundColor('#0B0A08')
+      .border({ width: { top: 1 }, color: '#241F19' })
+
+      Row().width('100%').height(px2vp(this.safeBottomPx)).backgroundColor('#F20B0A08')
+    }
+    .width('100%')
+  }
+
+  @Builder
+  photoPreviewLayers() {
+    Stack() {
+      if ((this.keepOriginalPreview || this.showOriginal) && !this.originalUnavailable) {
+        ForEach([this.sourceUri], (source: string) => {
+          Image(`file://${source}`)
+            .width('100%')
+            .height('100%')
+            .objectFit(ImageFit.Contain)
+            .draggable(false)
+            .scale({ x: this.zoom, y: this.zoom })
+            .translate({ x: this.panX, y: this.panY })
+            .onError(() => {
+              if (source === this.sourceUri) {
+                this.originalUnavailable = true;
+              }
+            })
+        }, (source: string) => source)
+      }
+
+      Stack() {
+        ForEach(this.previewFrames, (path: string) => {
+          Stack() {
+            Image(`file://${path}`)
+              .width('100%')
+              .height('100%')
+              .objectFit(ImageFit.Contain)
+              .draggable(false)
+              .scale({ x: this.zoom, y: this.zoom })
+              .translate({ x: this.panX, y: this.panY })
+              .onComplete((event) => {
+                if (event?.loadingStatus === 1) {
+                  this.revealPreview(path);
+                }
+              })
+              .onError(() => { this.previewLoadFailed(path); })
+          }
+          .width('100%')
+          .height('100%')
+          .backgroundColor('#0A0908')
+          .opacity(path === this.pendingPreviewPath ? 0 : 1)
+        }, (path: string) => path)
+      }
+      .width('100%')
+      .height('100%')
+      .opacity(this.showOriginal ? 0 : 1)
+
+      if (this.originalUnavailable && this.showOriginal) {
+        Text('无法直接预览原图')
+          .fontSize(12)
+          .fontColor('#A49985')
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .hitTestBehavior(HitTestMode.None)
+  }
+
+  @Builder
+  previewCanvas() {
+    Stack() {
+      if (this.sourceUri.length > 0) {
+        this.photoPreviewLayers()
+      } else {
+        Column({ space: 10 }) {
+          Text('选择一张照片开始').fontSize(14).fontColor('#5E584E')
+          // Two doors into the same room: gallery and file manager. Same
+          // size and colour, because neither is the "right" one.
+          Button('从相册选择')
+            .fontSize(13)
+            .height(38)
+            .width(168)
+            .backgroundColor('#1C1915')
+            .fontColor('#C9BDA6')
+            .type(ButtonType.Normal)
+            .borderRadius(7)
+            .enabled(this.ready && !this.busy)
+            .onClick(() => { this.pickSource(); })
+          Button('从文件选择')
+            .fontSize(13)
+            .height(38)
+            .width(168)
+            .backgroundColor('#1C1915')
+            .fontColor('#C9BDA6')
+            .type(ButtonType.Normal)
+            .borderRadius(7)
+            .enabled(this.ready && !this.busy)
+            .onClick(() => { this.pickFile(); })
+        }
+        .justifyContent(FlexAlign.Center)
+        .height('100%')
+      }
+
+      // Crop mode: the rectangle plus its 应用 / 取消 pair.
+
+      // 片边构图: the full frame with the gate on top of it.
+      if (this.composeMode) {
+        Column() {
+          Image(this.composeUri)
+            .objectFit(ImageFit.Contain)
+            .width('100%')
+            .height('100%')
+            // The gate stays put; the picture moves under it,
+            // using the same transform the preview already uses.
+            .scale({ x: this.zoom, y: this.zoom })
+            .translate({ x: this.panX, y: this.panY })
+        }
+        .width('100%')
+        .height('100%')
+        .hitTestBehavior(HitTestMode.Transparent)
+        .backgroundColor('#0A0908')
+
+        // Everything the gate will cut away goes dark. Drawn as four bars
+        // rather than one translucent layer with a hole, which ArkUI has no
+        // cheap way to express.
+        Row()
+          .width('100%')
+          .height(this.gateRect()[1])
+          .position({ x: 0, y: 0 })
+          .backgroundColor('#95000000')
+          .hitTestBehavior(HitTestMode.None)
+        Row()
+          .width('100%')
+          .height(this.canvasH - this.gateRect()[1] - this.gateRect()[3])
+          .position({ x: 0, y: this.gateRect()[1] + this.gateRect()[3] })
+          .backgroundColor('#95000000')
+          .hitTestBehavior(HitTestMode.None)
+        Row()
+          .width(this.gateRect()[0])
+          .height(this.gateRect()[3])
+          .position({ x: 0, y: this.gateRect()[1] })
+          .backgroundColor('#95000000')
+          .hitTestBehavior(HitTestMode.None)
+        Row()
+          .width(this.canvasW - this.gateRect()[0] - this.gateRect()[2])
+          .height(this.gateRect()[3])
+          .position({ x: this.gateRect()[0] + this.gateRect()[2], y: this.gateRect()[1] })
+          .backgroundColor('#95000000')
+          .hitTestBehavior(HitTestMode.None)
+
+        // The gate: a fixed frame in the format's shape. It takes no
+        // gesture at all, so the canvas underneath keeps every event and
+        // there is nothing to arbitrate against.
+        Column() {
+          Row()
+            .width('100%')
+            .height('100%')
+            .border({ width: 1, color: '#E8E0D0' })
+        }
+        .width(this.gateRect()[2])
+        .height(this.gateRect()[3])
+        .position({ x: this.gateRect()[0], y: this.gateRect()[1] })
+        .hitTestBehavior(HitTestMode.None)
+
+        Row({ space: 8 }) {
+          Blank()
+          Button('取消')
+            .fontSize(12).height(32)
+            .backgroundColor('#1C1915').fontColor('#C9BDA6')
+            .type(ButtonType.Normal).borderRadius(6)
+            .onClick(() => { this.closeCompose(); })
+          Button('应用')
+            .fontSize(12).height(32)
+            .backgroundColor(ACCENT).fontColor('#1A1713')
+            .type(ButtonType.Normal).borderRadius(6)
+            .onClick(() => { this.applyGate(); })
+        }
+        .width('100%')
+        .height('100%')
+        .hitTestBehavior(HitTestMode.Transparent)
+        .padding({ right: 16, bottom: 12 })
+        .alignItems(VerticalAlign.Bottom)
+        // 竖屏下这两个按钮会压在 tab 上，改由壳子底部的圆形按钮承担
+        .visibility(this.compact ? Visibility.None : Visibility.Visible)
+        .hitTestBehavior(HitTestMode.Transparent)
+      }
+
+      // Waveform overlay, parked in the top-right corner of the canvas.
+      if (this.showWaveform && !this.composeMode && this.previewUri.length > 0) {
+        Row() {
+          Blank()
+          Column({ space: 4 }) {
+            Text('波形')
+              .fontSize(9)
+              .fontColor('#7A7365')
+              .width('100%')
+            Canvas(this.waveCtx)
+              .width(208)
+              .height(96)
+              .onReady(() => { this.drawWaveform(); })
+          }
+          .width(228)
+          .padding(10)
+          .backgroundColor('#5C080705')
+          .borderRadius(10)
+          .border({ width: 1, color: '#2A2A24' })
+          .alignItems(HorizontalAlign.Start)
+        }
+        .width('100%')
+        .height('100%')
+        .hitTestBehavior(HitTestMode.Transparent)
+        .padding({ top: 12, right: 16 })
+        .alignItems(VerticalAlign.Top)
+        .hitTestBehavior(HitTestMode.None)
+      }
+
+      if (this.previewActivityVisible && !this.composeMode) {
+        Row() {
+          PreviewActivity()
+        }
+        .width('100%')
+        .height('100%')
+        .alignItems(VerticalAlign.Bottom)
+        .padding({ left: 14, bottom: 14 })
+        .hitTestBehavior(HitTestMode.None)
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .renderFit(RenderFit.CENTER)
+    .backgroundColor('#0A0908')
+    // Clipping matters: without it a zoomed image spills over the toolbar
+    // and the parameter panel.
+    .clip(true)
+    .onAreaChange((_old: Area, now: Area) => {
+      this.canvasW = Number(now.width);
+      this.canvasH = Number(now.height);
+    })
+    .gesture(
+      GestureGroup(GestureMode.Parallel,
+        // Double tap toggles 2x, and resets from anything else. Pinch is
+        // exact but two fingers on a 12" tablet are awkward; this is the
+        // gesture people actually reach for.
+        TapGesture({ count: 2 })
+          .onAction(() => {
+            if (this.zoom <= 1.01) {
+              this.zoom = 2;
+              this.panX = 0;
+              this.panY = 0;
+            } else {
+              this.resetView();
+            }
+          }),
+        // One finger pans, but only once zoomed in: at 100% a drag would
+        // just slide the picture around inside its own frame.
+        PanGesture({ fingers: 1, distance: 3 })
+          .onActionStart(() => {
+            this.panStartX = this.panX;
+            this.panStartY = this.panY;
+          })
+          .onActionUpdate((event: GestureEvent) => {
+            if (this.zoom <= 1.01 && !this.composeMode) {
+              return;
+            }
+            this.panX = this.composeMode
+              ? this.clampComposePan(this.panStartX + event.offsetX, this.canvasW, this.gateRect()[2])
+              : this.clampPan(this.panStartX + event.offsetX, this.canvasW);
+            this.panY = this.composeMode
+              ? this.clampComposePan(this.panStartY + event.offsetY, this.canvasH, this.gateRect()[3])
+              : this.clampPan(this.panStartY + event.offsetY, this.canvasH);
+          }),
+        // Two fingers zoom. Panning while pinching would fight the gesture,
+        // so the offset is only re-clamped here.
+        PinchGesture({ fingers: 2 })
+          .onActionStart(() => {
+            this.zoomStart = this.zoom;
+          })
+          .onActionUpdate((event: GestureEvent) => {
+            const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, this.zoomStart * event.scale));
+            this.zoom = next;
+            if (next <= 1.01) {
+              this.panX = (this.composeMode ? this.clampComposePan(this.panX, this.canvasW, this.gateRect()[2]) : this.clampPan(this.panX, this.canvasW));
+              this.panY = (this.composeMode ? this.clampComposePan(this.panY, this.canvasH, this.gateRect()[3]) : this.clampPan(this.panY, this.canvasH));
+            } else {
+              this.panX = (this.composeMode ? this.clampComposePan(this.panX, this.canvasW, this.gateRect()[2]) : this.clampPan(this.panX, this.canvasW));
+              this.panY = (this.composeMode ? this.clampComposePan(this.panY, this.canvasH, this.gateRect()[3]) : this.clampPan(this.panY, this.canvasH));
+            }
+          })
+      )
+    )
   }
 
   build() {
@@ -2829,209 +3295,83 @@ struct Index {
         .width('100%')
         .padding({ left: 14, right: 14, top: 10, bottom: 8 })
 
-        Row() {
-          Text('导航').fontSize(12).fontColor(INK).fontWeight(FontWeight.Medium)
-          Blank()
-        }
-        .width('100%')
-        .padding({ left: 14, right: 14, bottom: 4 })
-
-        // Navigator thumbnail, mirroring the desktop's top-left preview.
-        Stack() {
-          if (this.previewUri.length > 0) {
-            Image(this.displayUri()).objectFit(ImageFit.Contain).width('100%').height('100%')
-          } else {
-            Text('无图像').fontSize(11).fontColor('#4A453C')
+        this.sectionHeader('导航', 'left:navigator', 26)
+        if (this.isOpen('left:navigator')) {
+          Stack() {
+            if (this.previewUri.length > 0) {
+              Image(this.displayUri()).objectFit(ImageFit.Contain).width('100%').height('100%')
+            } else {
+              Text('无图像').fontSize(11).fontColor('#4A453C')
+            }
           }
+          .width('100%')
+          .height(96)
+          .backgroundColor('#0A0908')
+          .borderRadius(6)
+          .margin({ left: 14, right: 14, bottom: 10 })
         }
-        .width('100%')
-        .height(96)
-        .backgroundColor('#0A0908')
-        .borderRadius(6)
-        .margin({ left: 14, right: 14, bottom: 10 })
 
-        Text('胶片').fontSize(12).fontColor(INK).fontWeight(FontWeight.Medium).width('100%').padding({ left: 14, top: 4, bottom: 2 })
+        this.sectionHeader('胶片', 'left:film', 26)
+        if (this.isOpen('left:film')) {
+          Scroll() {
+            Column() {
+              this.filmCards()
+            }
+            .width('100%')
+            .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+          }
+          .layoutWeight(4)
+          .width('100%')
+          .scrollBar(BarState.Off)
+          .attributeModifier(SIDEBAR_SCROLL_FADE)
+        }
 
-        List({ space: 0 }) {
-          ForEach(this.filmRows, (row: FilmRow) => {
-            ListItem() {
-              if (row.isCaption) {
-                Text(row.label)
-                  .fontSize(9)
-                  .fontColor('#6E675B')
-                  .width('100%')
-                  .padding({ left: 8, top: 7, bottom: 3 })
-              } else {
-                Row({ space: 8 }) {
-                  Text(this.films[row.filmIndex].label)
-                    .fontSize(12)
-                    .fontColor(row.filmIndex === this.filmIndex ? '#171410' : '#D8CFBE')
-                    .maxLines(1)
-                    .textOverflow({ overflow: TextOverflow.Ellipsis })
-                    .layoutWeight(1)
-                  this.stockCard(this.films[row.filmIndex])
+        Divider().color(LINE)
+
+        this.sectionHeader('相纸', 'left:paper', 26)
+        if (this.isOpen('left:paper')) {
+          Scroll() {
+            Column() {
+              this.paperCards()
+            }
+            .width('100%')
+            .padding({ left: 10, right: 10, top: 4, bottom: 8 })
+          }
+          .layoutWeight(2)
+          .width('100%')
+          .scrollBar(BarState.Off)
+          .attributeModifier(SIDEBAR_SCROLL_FADE)
+        }
+
+        Divider().color(LINE)
+
+        this.sectionHeader('画幅', 'left:format', 26)
+        if (this.isOpen('left:format')) {
+          Scroll() {
+            Column({ space: 5 }) {
+              this.formatCards()
+              this.sectionHeader('片边样式', 'left:border', 24)
+              if (this.isOpen('left:border')) {
+                this.borderCards()
+
+                if (BORDERS[this.borderIndex].style === '35mm') {
+                  AdjustmentSlider({
+                    label: '灰雾', value: $edgeFog, min: 0, step: 0.02, decimals: 0, displayScale: 100,
+                    inline: true, labelWidth: 32, onCommit: () => { this.schedulePreview(0); }
+                  })
+                  AdjustmentSlider({
+                    label: '漏光', value: $edgeLeak, min: 0, step: 0.02, decimals: 0, displayScale: 100,
+                    inline: true, labelWidth: 32, onCommit: () => { this.schedulePreview(0); }
+                  })
                 }
-                .width('100%')
-                .padding({ left: 7, right: 8, top: 4, bottom: 4 })
-                .backgroundColor(row.filmIndex === this.filmIndex ? '#F0EBE1' : Color.Transparent)
-                .borderRadius(9)
-                .onClick(() => {
-                  this.filmIndex = row.filmIndex;
-                  this.syncPaperToFilm();
-                  this.schedulePreview();
-                })
               }
             }
-          }, (row: FilmRow) => row.isCaption ? row.label : this.films[row.filmIndex].name)
-        }
-        .layoutWeight(3)
-        .width('100%')
-        .width('90%').margin({ left: 10 })
-        .scrollBar(BarState.Off)
-
-        Divider().color(LINE).margin({ top: 6, bottom: 6 })
-
-        Text('相纸').fontSize(12).fontColor(INK).fontWeight(FontWeight.Medium).width('100%').padding({ left: 14, top: 4, bottom: 2 })
-
-        List({ space: 0 }) {
-          // Reversal films print onto nothing, so the list needs a row that
-          // means exactly that; it is what selecting a slide lands on.
-          ListItem() {
-            Text('不使用相纸配置')
-              .fontSize(12)
-              .fontColor(this.paperIndex < 0 ? '#171410' : '#D8CFBE')
-              .maxLines(1)
-              .width('100%')
-              .padding({ left: 7, right: 8, top: 5, bottom: 5 })
-              .backgroundColor(this.paperIndex < 0 ? '#F0EBE1' : Color.Transparent)
-              .borderRadius(9)
-              .onClick(() => {
-                this.paperIndex = -1;
-      // A slide is scanned directly: the engine's slide path needs this,
-      // and printing it onto paper would be physically wrong.
-      this.scanFilm = true;
-                this.schedulePreview();
-              })
-          }
-          ForEach(this.papers, (paper: PaperEntry, index: number) => {
-            ListItem() {
-              Text(paper.label)
-                .fontSize(12)
-                .fontColor(index === this.paperIndex ? '#171410' : '#D8CFBE')
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-                .width('100%')
-                .padding({ left: 7, right: 8, top: 5, bottom: 5 })
-                .backgroundColor(index === this.paperIndex ? '#F0EBE1' : Color.Transparent)
-                .borderRadius(9)
-                .onClick(() => {
-                  this.paperIndex = index;
-                  this.schedulePreview();
-                })
-            }
-          }, (paper: PaperEntry) => paper.name)
-        }
-        .layoutWeight(2)
-        .width('100%')
-        .padding({ left: 8, right: 8, bottom: 8 })
-        .scrollBar(BarState.Off)
-
-        Divider().color(LINE).margin({ top: 4, bottom: 8 })
-
-        Row() {
-          Text('片边').fontSize(10).fontColor(MUTED)
-          Blank()
-          Text(BORDERS[this.borderIndex].label).fontSize(9).fontColor(DIM)
-        }
-        .width('100%')
-        .padding({ left: 14, right: 14, bottom: 4 })
-
-        // 画幅 sets the crop and the border family together. 135 frames are cut
-        // from the 35mm strip (which turns with the picture, so half frame shows
-        // its perforations above and below); 120 frames use the nine-patch 120
-        // border, which is why 6×6 comes out square.
-        Flex({ wrap: FlexWrap.Wrap }) {
-          ForEach(FORMATS, (f: FrameFormat, i: number) => {
-            Text(f.label)
-              .fontSize(10)
-              .fontColor(i === this.formatIndex ? '#1A1713' : MUTED)
-              .backgroundColor(i === this.formatIndex ? ACCENT : '#1C1915')
-              .padding({ left: 7, right: 7, top: 4, bottom: 4 })
-              .borderRadius(4)
-              .margin({ right: 4, bottom: 4 })
-              .onClick(() => {
-                this.formatIndex = i;
-                this.cropRatio = f.ratio;
-                if (f.style.length > 0) {
-                  this.borderIndex = this.borderIndexOf(f.style);
-                }
-                this.schedulePreview();
-              })
-          }, (f: FrameFormat) => f.label)
-        }
-        .width('100%')
-        .padding({ left: 12, right: 8 })
-
-        // Style override, so a 135 crop can still take a plain mat if wanted.
-        Flex({ wrap: FlexWrap.Wrap }) {
-          ForEach(BORDERS, (b: BorderChoice, i: number) => {
-            Text(b.label)
-              .fontSize(10)
-              .fontColor(i === this.borderIndex ? '#1A1713' : MUTED)
-              .backgroundColor(i === this.borderIndex ? ACCENT : '#1C1915')
-              .padding({ left: 7, right: 7, top: 4, bottom: 4 })
-              .borderRadius(4)
-              .margin({ right: 4, bottom: 4 })
-              .onClick(() => {
-                this.borderIndex = i;
-                this.schedulePreview();
-              })
-          }, (b: BorderChoice) => b.label)
-        }
-        .width('100%')
-        .padding({ left: 12, right: 8, bottom: 10 + px2vp(this.safeBottomPx) })
-
-        // The two things that were on the spool rather than in the gate.
-        if (BORDERS[this.borderIndex].style === '35mm') {
-          Row() {
-            Text('灰雾').fontSize(10).fontColor(MUTED).width(34)
-            Slider({ value: this.edgeFog, min: 0, max: 1, step: 0.02, style: SliderStyle.OutSet })
-              .selectedColor(ACCENT)
-              .trackColor('#241F19')
-              .blockColor(INK)
-              .layoutWeight(1)
-              .onChange((v: number) => {
-                this.edgeFog = v;
-                this.schedulePreview();
-              })
-            Text(`${Math.round(this.edgeFog * 100)}`)
-              .fontSize(9)
-              .fontColor(DIM)
-              .width(22)
-              .textAlign(TextAlign.End)
+            .width('100%')
+            .padding({ left: 10, right: 10, bottom: 10 + px2vp(this.safeBottomPx) })
           }
           .width('100%')
-          .padding({ left: 14, right: 14, top: 4 })
-
-          Row() {
-            Text('漏光').fontSize(10).fontColor(MUTED).width(34)
-            Slider({ value: this.edgeLeak, min: 0, max: 1, step: 0.02, style: SliderStyle.OutSet })
-              .selectedColor(ACCENT)
-              .trackColor('#241F19')
-              .blockColor(INK)
-              .layoutWeight(1)
-              .onChange((v: number) => {
-                this.edgeLeak = v;
-                this.schedulePreview();
-              })
-            Text(`${Math.round(this.edgeLeak * 100)}`)
-              .fontSize(9)
-              .fontColor(DIM)
-              .width(22)
-              .textAlign(TextAlign.End)
-          }
-          .width('100%')
-          .padding({ left: 14, right: 14 })
+          .layoutWeight(4)
+          .scrollBar(BarState.Off)
         }
       }
         .width(this.compact ? 0 : this.leftW)
@@ -3044,6 +3384,10 @@ struct Index {
 
       // ================= CENTER: canvas ====================================
       Column() {
+        if (this.compact) {
+          this.compactToolbar()
+        }
+
         // toolbar
         Row({ space: 8 }) {
           // One entry point for opening a photograph. The two pickers differ in
@@ -3110,7 +3454,7 @@ struct Index {
 
           Blank()
 
-          if (this.busy) {
+          if (this.busy && !this.rendering) {
             LoadingProgress().width(18).height(18).color(ACCENT)
           }
           Text(this.timing).fontSize(11).fontColor(DIM)
@@ -3171,223 +3515,17 @@ struct Index {
         }
         .width('100%')
         .padding({ left: 14, right: 14, top: 10, bottom: 10 })
-        // 单栏模式下这条工具栏不用，藏掉：否则会从壳子的顶栏下面透出来
         .visibility(this.compact ? Visibility.None : Visibility.Visible)
 
-        // canvas
-        Stack() {
-          if (this.displayUri().length > 0) {
-            Image(this.displayUri())
-              .objectFit(ImageFit.Contain)
-              .width('100%')
-              .height('100%')
-              .scale({ x: this.zoom, y: this.zoom })
-              .translate({ x: this.panX, y: this.panY })
-          } else {
-            Column({ space: 10 }) {
-              Text('选择一张照片开始').fontSize(14).fontColor('#5E584E')
-              // Two doors into the same room: gallery and file manager. Same
-              // size and colour, because neither is the "right" one.
-              Button('从相册选择')
-                .fontSize(13)
-                .height(38)
-                .width(168)
-                .backgroundColor('#1C1915')
-                .fontColor('#C9BDA6')
-                .type(ButtonType.Normal)
-                .borderRadius(7)
-                .enabled(this.ready && !this.busy)
-                .onClick(() => { this.pickSource(); })
-              Button('从文件选择')
-                .fontSize(13)
-                .height(38)
-                .width(168)
-                .backgroundColor('#1C1915')
-                .fontColor('#C9BDA6')
-                .type(ButtonType.Normal)
-                .borderRadius(7)
-                .enabled(this.ready && !this.busy)
-                .onClick(() => { this.pickFile(); })
-            }
-            .justifyContent(FlexAlign.Center)
-            .height('100%')
-          }
-
-          // Crop mode: the rectangle plus its 应用 / 取消 pair.
-
-          // 片边构图: the full frame with the gate on top of it.
-          if (this.composeMode) {
-            Column() {
-              Image(this.composeUri)
-                .objectFit(ImageFit.Contain)
-                .width('100%')
-                .height('100%')
-                // The gate stays put; the picture moves under it,
-                // using the same transform the preview already uses.
-                .scale({ x: this.zoom, y: this.zoom })
-                .translate({ x: this.panX, y: this.panY })
-            }
-            .width('100%')
-            .height('100%')
-            .hitTestBehavior(HitTestMode.Transparent)
-            .backgroundColor('#0A0908')
-
-            // Everything the gate will cut away goes dark. Drawn as four bars
-            // rather than one translucent layer with a hole, which ArkUI has no
-            // cheap way to express.
-            Row()
-              .width('100%')
-              .height(this.gateRect()[1])
-              .position({ x: 0, y: 0 })
-              .backgroundColor('#95000000')
-              .hitTestBehavior(HitTestMode.None)
-            Row()
-              .width('100%')
-              .height(this.canvasH - this.gateRect()[1] - this.gateRect()[3])
-              .position({ x: 0, y: this.gateRect()[1] + this.gateRect()[3] })
-              .backgroundColor('#95000000')
-              .hitTestBehavior(HitTestMode.None)
-            Row()
-              .width(this.gateRect()[0])
-              .height(this.gateRect()[3])
-              .position({ x: 0, y: this.gateRect()[1] })
-              .backgroundColor('#95000000')
-              .hitTestBehavior(HitTestMode.None)
-            Row()
-              .width(this.canvasW - this.gateRect()[0] - this.gateRect()[2])
-              .height(this.gateRect()[3])
-              .position({ x: this.gateRect()[0] + this.gateRect()[2], y: this.gateRect()[1] })
-              .backgroundColor('#95000000')
-              .hitTestBehavior(HitTestMode.None)
-
-            // The gate: a fixed frame in the format's shape. It takes no
-            // gesture at all, so the canvas underneath keeps every event and
-            // there is nothing to arbitrate against.
-            Column() {
-              Row()
-                .width('100%')
-                .height('100%')
-                .border({ width: 1, color: '#E8E0D0' })
-            }
-            .width(this.gateRect()[2])
-            .height(this.gateRect()[3])
-            .position({ x: this.gateRect()[0], y: this.gateRect()[1] })
-            .hitTestBehavior(HitTestMode.None)
-
-            Row({ space: 8 }) {
-              Blank()
-              Button('取消')
-                .fontSize(12).height(32)
-                .backgroundColor('#1C1915').fontColor('#C9BDA6')
-                .type(ButtonType.Normal).borderRadius(6)
-                .onClick(() => { this.closeCompose(); })
-              Button('应用')
-                .fontSize(12).height(32)
-                .backgroundColor(ACCENT).fontColor('#1A1713')
-                .type(ButtonType.Normal).borderRadius(6)
-                .onClick(() => { this.applyGate(); })
-            }
-            .width('100%')
-            .height('100%')
-            .hitTestBehavior(HitTestMode.Transparent)
-            .padding({ right: 16, bottom: 12 })
-            .alignItems(VerticalAlign.Bottom)
-            // 竖屏下这两个按钮会压在 tab 上，改由壳子底部的圆形按钮承担
-            .visibility(this.compact ? Visibility.None : Visibility.Visible)
-            .hitTestBehavior(HitTestMode.Transparent)
-          }
-
-          // Waveform overlay, parked in the top-right corner of the canvas.
-          if (this.showWaveform && !this.composeMode) {
-            Row() {
-              Blank()
-              Column({ space: 4 }) {
-                Text('波形')
-                  .fontSize(9)
-                  .fontColor('#7A7365')
-                  .width('100%')
-                Canvas(this.waveCtx)
-                  .width(208)
-                  .height(96)
-                  .onReady(() => { this.drawWaveform(); })
-              }
-              .width(228)
-              .padding(10)
-              .backgroundColor('#5C080705')
-              .borderRadius(10)
-              .border({ width: 1, color: '#2A2A24' })
-              .alignItems(HorizontalAlign.Start)
-            }
-            .width('100%')
-            .height('100%')
-            .hitTestBehavior(HitTestMode.Transparent)
-            .padding({ top: 12, right: 16 })
-            .alignItems(VerticalAlign.Top)
-            .hitTestBehavior(HitTestMode.None)
+        Stack({ alignContent: Alignment.Bottom }) {
+          this.previewCanvas()
+          if (this.compact) {
+            this.compactCanvasActions()
           }
         }
         .width('100%')
         .layoutWeight(1)
-        .backgroundColor('#0A0908')
-        // Clipping matters: without it a zoomed image spills over the toolbar
-        // and the parameter panel.
         .clip(true)
-        .onAreaChange((_old: Area, now: Area) => {
-          this.canvasW = Number(now.width);
-          this.canvasH = Number(now.height);
-        })
-        .gesture(
-          GestureGroup(GestureMode.Parallel,
-            // Double tap toggles 2x, and resets from anything else. Pinch is
-            // exact but two fingers on a 12" tablet are awkward; this is the
-            // gesture people actually reach for.
-            TapGesture({ count: 2 })
-              .onAction(() => {
-                if (this.zoom <= 1.01) {
-                  this.zoom = 2;
-                  this.panX = 0;
-                  this.panY = 0;
-                } else {
-                  this.resetView();
-                }
-              }),
-            // One finger pans, but only once zoomed in: at 100% a drag would
-            // just slide the picture around inside its own frame.
-            PanGesture({ fingers: 1, distance: 3 })
-              .onActionStart(() => {
-                this.panStartX = this.panX;
-                this.panStartY = this.panY;
-              })
-              .onActionUpdate((event: GestureEvent) => {
-                if (this.zoom <= 1.01 && !this.composeMode) {
-                  return;
-                }
-                this.panX = this.composeMode
-                  ? this.clampComposePan(this.panStartX + event.offsetX, this.canvasW, this.gateRect()[2])
-                  : this.clampPan(this.panStartX + event.offsetX, this.canvasW);
-                this.panY = this.composeMode
-                  ? this.clampComposePan(this.panStartY + event.offsetY, this.canvasH, this.gateRect()[3])
-                  : this.clampPan(this.panStartY + event.offsetY, this.canvasH);
-              }),
-            // Two fingers zoom. Panning while pinching would fight the gesture,
-            // so the offset is only re-clamped here.
-            PinchGesture({ fingers: 2 })
-              .onActionStart(() => {
-                this.zoomStart = this.zoom;
-              })
-              .onActionUpdate((event: GestureEvent) => {
-                const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, this.zoomStart * event.scale));
-                this.zoom = next;
-                if (next <= 1.01) {
-                  this.panX = (this.composeMode ? this.clampComposePan(this.panX, this.canvasW, this.gateRect()[2]) : this.clampPan(this.panX, this.canvasW));
-                  this.panY = (this.composeMode ? this.clampComposePan(this.panY, this.canvasH, this.gateRect()[3]) : this.clampPan(this.panY, this.canvasH));
-                } else {
-                  this.panX = (this.composeMode ? this.clampComposePan(this.panX, this.canvasW, this.gateRect()[2]) : this.clampPan(this.panX, this.canvasW));
-                  this.panY = (this.composeMode ? this.clampComposePan(this.panY, this.canvasH, this.gateRect()[3]) : this.clampPan(this.panY, this.canvasH));
-                }
-              })
-          )
-        )
 
         // status bar
         Row({ space: 10 }) {
@@ -3505,6 +3643,10 @@ struct Index {
           .border({ width: { top: 1 }, color: LINE })
         .visibility(this.compact ? Visibility.None : Visibility.Visible)
         }
+
+        if (this.compact) {
+          this.compactControls()
+        }
       }
       .layoutWeight(1)
       .height('100%')
@@ -3534,50 +3676,28 @@ struct Index {
             // --- 输入 / 相机 ---------------------------------------------
             this.sectionHeader('输入 / 相机', 'cam')
             if (this.openCamera) {
-              Row() {
-                Text('胶片曝光').fontSize(11).fontColor('#A79E8E')
-                Blank()
-                Text(`${this.ev > 0 ? '+' : ''}${this.ev.toFixed(1)}`).fontSize(11).fontColor(INK).padding({ bottom: 1 }).border({ width: { bottom: 1 }, color: '#443E33' })
-              }
-              .width('100%')
-              .padding({ left: 12, right: 12 })
-              SliderRow({ value: $ev, min: -3, max: 3, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); }, track: '90%' })
+              AdjustmentSlider({
+                label: '胶片曝光', value: $ev, min: -3, max: 3, step: 0.1, decimals: 1, signed: true,
+                inset: 12, onCommit: () => { this.schedulePreview(0); }
+              })
 
-              Row() {
-                Text('色温').fontSize(11).fontColor('#A79E8E')
-                Text(' RAW').fontSize(9).fontColor(DIM)
-                // 自动 = 用 RAW 里记录的白平衡。手动调过之后可以点回来。
-                Text(this.wbCustom ? ' 自动' : ' 自动✓')
-                  .fontSize(9)
-                  .fontColor(this.wbCustom ? ACCENT : DIM)
-                  .onClick(() => {
-                    this.wbCustom = false;
-                    this.temperature = 5500;
-                    this.tint = 1.0;
-                    this.schedulePreview();
-                  })
-                Blank()
-                Text(this.wbCustom ? `${this.temperature.toFixed(0)}K` : '自动')
-                  .fontSize(this.wbCustom ? 11 : 9)
-                  .fontColor(INK)
-                  .padding({ bottom: 1 })
-                  .border({ width: { bottom: 1 }, color: '#443E33' })
-              }
-              .width('100%')
-              .padding({ left: 12, right: 12 })
-              SliderRow({ value: $temperature, min: 2500, max: 10000, step: 50, from: '#1B2A3E', to: '#4A3F26', onChanged: () => { this.wbCustom = true; this.schedulePreview(); } })
+              AdjustmentSlider({
+                label: '色温', value: $temperature, min: 2500, max: 10000, step: 50, decimals: 0, unit: ' K',
+                inset: 12, hint: 'RAW', automatic: !this.wbCustom, rampStart: '#41648D', rampEnd: '#A97744',
+                onReset: () => {
+                  this.wbCustom = false;
+                  this.temperature = 5500;
+                  this.tint = 1.0;
+                  this.schedulePreview(0);
+                },
+                onCommit: () => { this.wbCustom = true; this.schedulePreview(0); }
+              })
 
-              Row() {
-                Text('色调').fontSize(11).fontColor('#A79E8E')
-                Blank()
-                Text(this.wbCustom ? this.tint.toFixed(2) : '自动')
-                  .fontSize(this.wbCustom ? 11 : 9)
-                  .padding({ bottom: 1 })
-                  .border({ width: { bottom: 1 }, color: '#443E33' })
-              }
-              .width('100%')
-              .padding({ left: 12, right: 12 })
-              SliderRow({ value: $tint, min: 0.5, max: 2, step: 0.01, from: '#2E4232', to: '#4E2B3D', onChanged: () => { this.wbCustom = true; this.schedulePreview(); } })
+              AdjustmentSlider({
+                label: '色调', value: $tint, min: 0.5, max: 2, step: 0.01,
+                inset: 12, automatic: !this.wbCustom, rampStart: '#596D49', rampEnd: '#865474',
+                onCommit: () => { this.wbCustom = true; this.schedulePreview(0); }
+              })
 
               Row() {
                 Text('镜头校正').fontSize(11).fontColor('#A79E8E')
@@ -3599,17 +3719,10 @@ struct Index {
             // --- 印相 -----------------------------------------------------
             this.sectionHeader('印相', 'print')
             if (this.openPrint) {
-              Row() {
-                Text('印相曝光').fontSize(11).fontColor('#A79E8E')
-                Blank()
-                Text(`${this.printEv > 0 ? '+' : ''}${this.printEv.toFixed(1)} EV`)
-                  .fontSize(11).fontColor(INK)
-                  .padding({ bottom: 1 })
-                  .border({ width: { bottom: 1 }, color: '#443E33' })
-              }
-              .width('100%')
-              .padding({ left: 12, right: 12 })
-              SliderRow({ value: $printEv, min: -2, max: 2, step: 0.1, from: '#161310', to: '#B4AC9C', onChanged: () => { this.schedulePreview(); }, track: '90%' })
+              AdjustmentSlider({
+                label: '印相曝光', value: $printEv, min: -2, max: 2, step: 0.1, decimals: 1, unit: ' EV', signed: true,
+                inset: 12, onCommit: () => { this.schedulePreview(0); }
+              })
 
               // 配光: balance the enlarger head for this photograph.
               Row({ space: 8 }) {
@@ -3695,41 +3808,22 @@ struct Index {
             // --- 后期 -----------------------------------------------------
             this.sectionHeader('后期', 'post')
             if (this.openPost) {
-              Row() {
-                Text('对比度').fontSize(11).fontColor('#A79E8E')
-                Blank()
-                Text(this.postContrast.toFixed(2)).fontSize(11).fontColor(INK).padding({ bottom: 1 }).border({ width: { bottom: 1 }, color: '#443E33' })
-              }
-              .width('100%')
-              .padding({ left: 12, right: 12 })
-              SliderRow({ value: $postContrast, from: '#141210', to: '#A8A093', onChanged: () => { this.schedulePreview(); }, track: '90%' })
-
-              Row() {
-                Text('饱和度').fontSize(11).fontColor('#A79E8E')
-                Blank()
-                Text(this.postSaturation.toFixed(2)).fontSize(11).fontColor(INK).padding({ bottom: 1 }).border({ width: { bottom: 1 }, color: '#443E33' })
-              }
-              .width('100%')
-              .padding({ left: 12, right: 12 })
-              SliderRow({ value: $postSaturation, from: '#2B2B29', to: '#4E2F3F', onChanged: () => { this.schedulePreview(); }, track: '90%' })
-
-              Row() {
-                Text('白场').fontSize(11).fontColor('#A79E8E')
-                Blank()
-                Text(this.postWhites.toFixed(2)).fontSize(11).fontColor(INK).padding({ bottom: 1 }).border({ width: { bottom: 1 }, color: '#443E33' })
-              }
-              .width('100%')
-              .padding({ left: 12, right: 12 })
-              SliderRow({ value: $postWhites, from: '#141210', to: '#C4BCAC', onChanged: () => { this.schedulePreview(); }, track: '90%' })
-
-              Row() {
-                Text('黑场').fontSize(11).fontColor('#A79E8E')
-                Blank()
-                Text(this.postBlacks.toFixed(2)).fontSize(11).fontColor(INK).padding({ bottom: 1 }).border({ width: { bottom: 1 }, color: '#443E33' })
-              }
-              .width('100%')
-              .padding({ left: 12, right: 12 })
-              SliderRow({ value: $postBlacks, from: '#0E0D0B', to: '#6A6357', onChanged: () => { this.schedulePreview(); }, track: '90%' })
+              AdjustmentSlider({
+                label: '对比度', value: $postContrast, inset: 12,
+                onCommit: () => { this.schedulePreview(0); }
+              })
+              AdjustmentSlider({
+                label: '饱和度', value: $postSaturation, inset: 12,
+                onCommit: () => { this.schedulePreview(0); }
+              })
+              AdjustmentSlider({
+                label: '白场', value: $postWhites, inset: 12,
+                onCommit: () => { this.schedulePreview(0); }
+              })
+              AdjustmentSlider({
+                label: '黑场', value: $postBlacks, inset: 12,
+                onCommit: () => { this.schedulePreview(0); }
+              })
             }
 
             Divider().color(LINE)
@@ -3793,127 +3887,6 @@ struct Index {
             .hitTestBehavior(HitTestMode.Transparent)
 
       this.exportDialog()
-          // —— 手机壳子：顶栏 / 对比 / 底部六格 ——
-          if (this.compact) {
-            Column() {
-              Row({ space: 4 }) {
-                Text('导入').fontSize(13).fontColor('#C9BDA6')
-                  .borderRadius(6)
-                  .padding({ left: 14, right: 12, top: 6, bottom: 6 })
-                  .bindMenu(this.importMenu)
-                Text('视图').fontSize(13).fontColor('#C9BDA6')
-                  .borderRadius(6)
-                  .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-                  .bindMenu(this.viewMenu)
-                Text(this.status.length > 0 ? this.status : (this.rendering ? '渲染中' : ''))
-                  .fontSize(9).fontColor('#8C8578')
-                  .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-                  .layoutWeight(1).padding({ left: 4, right: 6 })
-                Blank()
-                Text('↶').fontSize(18)
-                  .fontColor(this.undoStack.length > 0 ? '#C9BDA6' : '#3E3A33')
-                  .padding({ left: 10, right: 10, top: 2, bottom: 2 })
-                  .onClick(() => { this.undo(); })
-                Text('↷').fontSize(18)
-                  .fontColor(this.redoStack.length > 0 ? '#C9BDA6' : '#3E3A33')
-                  .padding({ left: 8, right: 8, top: 2, bottom: 2 })
-                  .onClick(() => { this.redo(); })
-                Text('导出').fontSize(13)
-                  .fontColor(this.canExport() ? '#1A1713' : '#5A5347')
-                  .backgroundColor(this.canExport() ? ACCENT : '#2A2620')
-                  .padding({ left: 14, right: 14, top: 7, bottom: 7 })
-                  .borderRadius(7)
-                  .margin({ left: 6, right: 18 })
-                  .onClick(() => {
-                    if (this.canExport()) {
-                      this.compactExport = true;
-                    }
-                  })
-              }
-              .width('100%').height(48)
-              // 小窗模式下右上角有系统窗口按钮，留出空间
-              .padding({ right: 0 })
-              .backgroundColor('#0B0A08')
-              .alignItems(VerticalAlign.Center)
-
-
-              Blank()
-
-              Row() {
-                Blank()
-                Stack() {
-                  Text('对比').fontSize(11)
-                    .fontColor(this.compareHold ? '#1A1713' : '#E8E0D0')
-                }
-                .width(54).height(54).borderRadius(27)
-                .backgroundColor(this.compareHold ? ACCENT : '#8C1C1915')
-                .border({ width: 1, color: '#4C463B' })
-                .margin({ right: 16, bottom: 18 })
-                .onTouch((e: TouchEvent) => {
-                  // 没有照片就没有「原片」可看
-                  if (this.sourceUri.length === 0) {
-                    return;
-                  }
-                  if (e.type === TouchType.Down) {
-                    this.compareHold = true;
-                    this.showOriginal = true;
-                  } else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
-                    this.compareHold = false;
-                    this.showOriginal = false;
-                  }
-                })
-              }
-              .width('100%')
-
-              if (this.compactTab >= 0) {
-                this.compactPanel()
-              }
-
-              // 构图模式：确认 / 取消，和底部六格之间留出空隙
-              if (this.composeMode) {
-                Row({ space: 28 }) {
-                  Stack() {
-                    Text('✕').fontSize(20).fontColor('#E8E0D0')
-                  }
-                  .width(58).height(58).borderRadius(29)
-                  .backgroundColor('#1C1915')
-                  .border({ width: 1, color: '#3A342B' })
-                  .onClick(() => { this.closeCompose(); })
-
-                  Stack() {
-                    Text('✓').fontSize(20).fontColor('#1A1713')
-                  }
-                  .width(58).height(58).borderRadius(29)
-                  .backgroundColor(ACCENT)
-                  .onClick(() => { this.applyGate(); })
-                }
-                .width('100%')
-                .height(84)
-                .justifyContent(FlexAlign.Center)
-                .margin({ bottom: 6 })
-              }
-
-              Row() {
-                this.compactTabItem('构图', 0)
-                this.compactTabItem('胶片', 1)
-                this.compactTabItem('相纸', 2)
-                this.compactTabItem('调整', 3)
-                this.compactTabItem('片边', 4)
-                this.compactTabItem('图库', 5)
-              }
-              .width('100%').height(58)
-              .backgroundColor('#0B0A08')
-              .border({ width: { top: 1 }, color: '#241F19' })
-
-              Row().width('100%').height(px2vp(this.safeBottomPx)).backgroundColor('#F20B0A08')
-            }
-            .width('100%').height('100%')
-            // 状态栏是沉浸式的，壳子整体下沉一个安全区高度，否则按钮被挡住
-            .padding({ top: px2vp(this.safeTopPx) })
-            // 壳子只让顶栏、面板和六格接手势，空白处把点击透给画布
-            .hitTestBehavior(HitTestMode.Transparent)
-          }
-
           // 竖屏导出：自下而上，预览在上、设置在中间、确认在底部。
           if (this.compactExport) {
             Stack({ alignContent: Alignment.Bottom }) {
@@ -3972,18 +3945,9 @@ struct Index {
                   .width('100%')
 
                   if (EXPORT_FORMATS[this.exportFormat].ext === '.jpg') {
-                    Row() {
-                      Text('品质').fontSize(11).fontColor('#A79E8E').width(62)
-                      Slider({ value: this.exportQuality, min: 40, max: 100, step: 1, style: SliderStyle.OutSet })
-                        .selectedColor(ACCENT)
-                        .trackColor('#241F19')
-                        .blockColor(INK)
-                        .layoutWeight(1)
-                        .onChange((v: number) => { this.exportQuality = v; })
-                      Text(Math.round(this.exportQuality).toString())
-                        .fontSize(11).fontColor(INK).width(38).textAlign(TextAlign.End)
-                    }
-                    .width('100%')
+                    AdjustmentSlider({
+                      label: '品质', value: $exportQuality, min: 40, max: 100, step: 1, decimals: 0, inline: true
+                    })
                   }
 
                   Row({ space: 6 }) {
@@ -4349,130 +4313,5 @@ struct FormatDialog {
     .borderRadius(14)
     .border({ width: 1, color: '#2E2A22' })
     .alignItems(HorizontalAlign.Start)
-  }
-}
-
-/**
- * 一根带渐变轨道的滑条。
- *
- * 用 @Link + $$ 双向绑定，状态和手柄天然同步：撤回、重做、外部改动都会
- * 让手柄跟着走，不需要靠换 id 强制重建（那条路在重做时并不可靠）。
- */
-@Component
-struct SliderRow {
-  @Link value: number;
-  @Prop min: number = -1;
-  @Prop max: number = 1;
-  @Prop step: number = 0.05;
-  @Prop from: string = '#141210';
-  @Prop to: string = '#A8A093';
-  /** 轨道占宽：竖屏面板窄一点，免得顶到滚动条。 */
-  @Prop track: string = '90%';
-  onChanged?: () => void;
-
-  build() {
-    Stack() {
-      Row()
-        .width('90%')
-        .height(4)
-        .borderRadius(2)
-        .linearGradient({ angle: 90, colors: [[this.from, 0.0], [this.to, 1.0]] })
-      Slider({ value: $$this.value, min: this.min, max: this.max, step: this.step, style: SliderStyle.OutSet })
-        .selectedColor(Color.Transparent)
-        .trackColor(Color.Transparent)
-        .blockColor('#CFC7B8')
-        .blockSize({ width: 10, height: 10 })
-        .width('90%')
-        .onChange((v: number) => {
-          this.value = v;
-          if (this.onChanged !== undefined) {
-            this.onChanged();
-          }
-        })
-    }
-    .width('100%')
-    .height(36)
-  }
-}
-
-/**
- * 参数名 + 数值。
- *
- * 不能写成 @Builder：@Builder 的字符串参数是构建时快照，状态变了不会重绘，
- * 数字会一直停在 0。@Prop 会随父级状态更新，这也是滑块改用组件的原因。
- */
-@Component
-struct ParamRow {
-  @Prop label: string = '';
-  @Prop value: string = '';
-
-  build() {
-    Row() {
-      Text(this.label).fontSize(12).fontColor('#A79E8E')
-      Blank()
-      Text(this.value)
-        .fontSize(12)
-        .fontColor(INK)
-        .padding({ bottom: 1 })
-        .border({ width: { bottom: 1 }, color: '#443E33' })
-    }
-    .width('100%')
-    .padding({ top: 8 })
-  }
-}
-
-/**
- * 一个参数：名字、数值、渐变滑条。
- *
- * 竖屏面板曾经用 Scroll 包住这些控件，纵向滚动会把滑条的横向拖动吃掉，
- * 结果只能点按不能拖。改成两列排版后不再需要滚动，冲突自然消失。
- */
-@Component
-struct ParamBlock {
-  @Link value: number;
-  @Prop label: string = '';
-  @Prop text: string = '';
-  @Prop min: number = -1;
-  @Prop max: number = 1;
-  @Prop step: number = 0.05;
-  @Prop from: string = '#141210';
-  @Prop to: string = '#A8A093';
-  onChanged?: () => void;
-
-  build() {
-    Row() {
-      Text(this.label)
-        .fontSize(11)
-        .fontColor('#A79E8E')
-        .width(62)
-        .maxLines(1)
-
-      SliderRow({
-        value: $value,
-        min: this.min,
-        max: this.max,
-        step: this.step,
-        from: this.from,
-        to: this.to,
-        track: '100%',
-        onChanged: () => {
-          if (this.onChanged !== undefined) {
-            this.onChanged();
-          }
-        }
-      })
-        .layoutWeight(1)
-
-      Text(this.text)
-        .fontSize(11)
-        .fontColor(INK)
-        .width(38)
-        .textAlign(TextAlign.End)
-        .padding({ bottom: 1 })
-        .border({ width: { bottom: 1 }, color: '#443E33' })
-    }
-    .width('100%')
-    .height(40)
-    .padding({ right: 14 })
   }
 }
